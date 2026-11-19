@@ -105,6 +105,10 @@ class ParametralDaemon:
                  notifier=None, harddeny_socket: str | None = None,
                  harddeny_rules: str | None = None):
         self.node_id = node_id
+        self.approver_uids = {
+            int(part) for part in os.environ.get("PARAMETRAL_APPROVER_UIDS", "").replace(" ", "").split(",")
+            if part.isdigit()
+        }
         self.policy_path = policy_path or util.policy_path()
         self.state_dir = util.ensure_dir(state_dir or util.state_dir())
         self.socket_path = socket_path or util.socket_path()
@@ -432,6 +436,18 @@ class ParametralDaemon:
         return {"jsonrpc": "2.0", "id": request_id, "error": error.to_dict()}
 
     # -------------------------------------------------------------- handlers
+
+    def peer_allowed(self, peer_uid: int) -> bool:
+        """Same uid as the daemon, or an explicitly configured approver uid.
+
+        The AI never runs as the daemon's uid: it is a different account by design. The human
+        approval window *does* have to reach the daemon, and it lives with the seat user, so
+        that one uid is allowed in — configured, never inferred. Everything such a peer may do
+        is still gated by role checks and the approver's Ed25519 proof.
+        """
+        if peer_uid == os.getuid():
+            return True
+        return peer_uid in self.approver_uids
 
     def _node_hello(self, params: dict, _token) -> dict:
         offered = params.get("protocol_versions") or PROTOCOL_VERSIONS
@@ -1084,7 +1100,7 @@ class _Handler(socketserver.StreamRequestHandler):
 
     def handle(self):
         peer = util.peer_uid(self.connection)
-        if peer is not None and peer != os.getuid():
+        if peer is not None and not self.daemon.peer_allowed(peer):
             try:
                 self.connection.sendall(json.dumps({
                     "jsonrpc": "2.0", "id": None,
@@ -1139,7 +1155,7 @@ class ParametralServer(socketserver.ThreadingUnixStreamServer):
         self.daemon_instance = daemon
         handler = type("BoundHandler", (_Handler,), {"daemon": daemon})
         super().__init__(socket_path, handler)
-        os.chmod(socket_path, 0o600)
+        os.chmod(socket_path, 0o660)   # 0600 locked out the human approval window
 
 
 def serve(policy_path: str | None = None, state_dir: str | None = None,

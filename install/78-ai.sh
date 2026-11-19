@@ -28,10 +28,19 @@ install -d /usr/share/applications
 install -m 0644 "$SRC/branding/apps/parametral-approvals.desktop" \
   /usr/share/applications/parametral-approvals.desktop
 
+for app in parametral-approvals parametral-ai; do
+  built="$SRC/apps/$app/target/release/$app"
+  if [ -x "$built" ]; then
+    install -m 0755 "$built" "/usr/local/bin/$app"
+    echo "    $app installed"
+  fi
+done
+
+install -m 0644 "$SRC/branding/apps/parametral-ai.desktop" /usr/share/applications/
+
 built="$SRC/apps/parametral-approvals/target/release/parametral-approvals"
 if [ -x "$built" ]; then
-  install -m 0755 "$built" /usr/local/bin/parametral-approvals
-  echo "    binary installed from the payload"
+  echo "    approval window installed"
 else
   echo "    NOTE: prebuilt binary not in the payload (build it with 'cargo build --release'"
   echo "          in apps/parametral-approvals and re-run; the menu entry is installed anyway)"

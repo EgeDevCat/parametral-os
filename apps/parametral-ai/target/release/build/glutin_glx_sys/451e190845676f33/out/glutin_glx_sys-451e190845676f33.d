@@ -1,0 +1,11 @@
+/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/451e190845676f33/out/glutin_glx_sys-451e190845676f33.d: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin_glx_sys-0.6.1/src/lib.rs /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_bindings.rs /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_extra_bindings.rs
+
+/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/451e190845676f33/out/libglutin_glx_sys-451e190845676f33.rlib: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin_glx_sys-0.6.1/src/lib.rs /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_bindings.rs /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_extra_bindings.rs
+
+/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/451e190845676f33/out/libglutin_glx_sys-451e190845676f33.rmeta: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin_glx_sys-0.6.1/src/lib.rs /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_bindings.rs /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_extra_bindings.rs
+
+/home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glutin_glx_sys-0.6.1/src/lib.rs:
+/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_bindings.rs:
+/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out/glx_extra_bindings.rs:
+
+# env-dep:OUT_DIR=/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ai/target/release/build/glutin_glx_sys/6b9b100701776f81/out

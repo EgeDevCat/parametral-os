@@ -37,6 +37,9 @@ id ai        >/dev/null 2>&1 || useradd -m -s /bin/bash ai
 # no video/audio, no games. If a future step needs a group, that is a design change.
 usermod -G "" ai
 install -d -o ai -g ai -m 0700 /home/ai
+# The human account runs the approval window; it reaches the daemon through the
+# parametral group (socket 0660), never through root.
+usermod -aG parametral "$PARAMETRAL_USER" 2>/dev/null || true
 install -d -o parametral -g parametral -m 0750 /var/lib/parametral
 install -d -o approver -g approver -m 0700 /var/lib/parametral
 install -d -o root -g root -m 0755 /var/lib/parametral/keys

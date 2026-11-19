@@ -10,7 +10,7 @@ Type=simple
 User=parametral
 Group=parametral
 RuntimeDirectory=parametral
-RuntimeDirectoryMode=0700
+RuntimeDirectoryMode=0750
 # Both units declare RuntimeDirectory=parametral; without Preserve, stopping either one
 # deletes the directory and takes the other service's socket with it.
 RuntimeDirectoryPreserve=yes

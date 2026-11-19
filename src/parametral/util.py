@@ -70,7 +70,26 @@ def runtime_dir() -> str:
 
 
 def socket_path() -> str:
-    return os.path.abspath(_env("PARAMETRAL_SOCKET", os.path.join(runtime_dir(), "v1", "control.sock")))
+    """Where the control socket is.
+
+    Order: explicit PARAMETRAL_SOCKET, then the per-user socket if it exists (tests, per-user
+    daemons), then the system gateway at /run/parametral/control.sock. Without that last step
+    every CLI invocation from a desktop session fails with "connection refused" while a system
+    daemon is perfectly healthy — the socket simply lives outside XDG_RUNTIME_DIR.
+    """
+    explicit = os.environ.get("PARAMETRAL_SOCKET")
+    if explicit:
+        return os.path.abspath(explicit)
+
+    per_user = os.path.abspath(os.path.join(runtime_dir(), "v1", "control.sock"))
+    if os.path.exists(per_user):
+        return per_user
+
+    system = "/run/parametral/control.sock"
+    if os.path.exists(system):
+        return system
+
+    return per_user
 
 
 def policy_path() -> str:
