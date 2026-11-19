@@ -19,6 +19,35 @@ echo "==> KDE colour scheme"
 install -d /usr/share/color-schemes
 install -m 0644 "$SRC/branding/kde/Parametral.colors" /usr/share/color-schemes/Parametral.colors
 
+
+echo "==> KDE global theme (Parametral görünümü Sistem Ayarları'nda)"
+install -d /usr/share/plasma/look-and-feel
+rm -rf /usr/share/plasma/look-and-feel/org.parametral.desktop
+cp -r "$SRC/branding/kde/look-and-feel/org.parametral.desktop" \
+      /usr/share/plasma/look-and-feel/org.parametral.desktop
+
+echo "==> start icon (our logo, over Breeze's start-here-kde)"
+install -Dm644 "$SRC/branding/icons/parametral-start.svg" \
+  /usr/share/icons/hicolor/scalable/apps/parametral-start.svg
+while IFS= read -r f; do
+  [ -f "$f.orig" ] || cp "$f" "$f.orig"
+  cp "$SRC/branding/icons/parametral-start.svg" "$f"
+done < <(find /usr/share/icons/breeze -name 'start-here-kde*.svg' 2>/dev/null)
+
+echo "==> first-login hook (launcher icon + wallpaper per account)"
+install -Dm755 "$SRC/branding/kde/parametral-first-login.sh" \
+  /usr/local/bin/parametral-first-login
+install -d /etc/xdg/autostart
+cat > /etc/xdg/autostart/parametral-first-login.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Parametral first login
+Exec=/usr/local/bin/parametral-first-login
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-after=panel
+EOF
+
 echo "==> per-user defaults (applied to every human account that exists)"
 for home in /home/*; do
   [ -d "$home" ] || continue
