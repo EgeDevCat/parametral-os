@@ -50,6 +50,18 @@ cat > /etc/xdg/konsolerc <<'EOF'
 DefaultProfile=Parametral.profile
 EOF
 
+
+# Lock screen: the greeter renders "wallpaper" from this image path. Set it here so the lock
+# screen is branded on every account without touching QML (the Breeze lockscreen is fine,
+# only its background was generic).
+cat > /etc/xdg/kscreenlockerrc <<'EOF'
+[Daemon]
+Autolock=false
+
+[Greeter][Wallpaper][org.kde.image][General]
+Image=/usr/share/wallpapers/Parametral/contents/images/2560x1440.png
+EOF
+
 # GTK apps (and anything using the Xcursor theme through GTK)
 for ini in /etc/gtk-3.0/settings.ini /etc/gtk-4.0/settings.ini; do
   cat > "$ini" <<'EOF'
