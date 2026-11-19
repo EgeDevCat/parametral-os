@@ -86,8 +86,11 @@ def build(mode):
     img = vignette(img, p["vig"])
 
     d = ImageDraw.Draw(img)
-    d.text((96, H - 150), "Parametral", font=font(54), fill=p["ink"] + (235,))
-    d.text((96, H - 88), "OS", font=font(26), fill=p["sub"] + (200,))
+    # Keep the wordmark inside the crop-safe centre: a 16:9 image on a 16:10 screen is
+    # cropped at the sides, and text placed at a fixed 96 px from the edge gets cut. Placing
+    # it relative to the width, high enough to clear a 64 px dock, keeps it readable.
+    d.text((int(W * 0.20), int(H * 0.775)), "Parametral", font=font(54), fill=p["ink"] + (235,))
+    d.text((int(W * 0.20), int(H * 0.845)), "OS", font=font(26), fill=p["sub"] + (200,))
     return img.convert("RGB")
 
 
