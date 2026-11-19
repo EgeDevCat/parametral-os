@@ -2,7 +2,7 @@
 # parametral-snapshot — btrfs snapshot + boot-entry + rollback for Parametral OS.
 #
 #   parametral-snapshot create [label]     read-only snapshot of @ and @home
-#   parametral-snapshot list               id, label, created, size
+#   parametral-snapshot list [--json]      id, label, created, state
 #   parametral-snapshot boot-entry <id>    add a systemd-boot entry booting that snapshot rw
 #   parametral-snapshot promote <id>       make a snapshot the real @ (run from live/other subvol)
 #   parametral-snapshot prune --keep N     delete older snapshots
@@ -78,6 +78,23 @@ cmd_create() {
     sync
   fi
   printf '%s\n' "$id"
+}
+
+cmd_list_json() {
+  [ -d "$SNAP_DIR" ] || { printf '[]\n'; return 0; }
+  local entry label created root_state first=1
+  printf '['
+  for entry in "$SNAP_DIR"/*; do
+    [ -d "$entry" ] || continue
+    label="$(sed -n 's/^label=//p' "$entry/.meta" 2>/dev/null || true)"
+    created="$(sed -n 's/^created=//p' "$entry/.meta" 2>/dev/null || true)"
+    if [ -d "$entry/$ROOT_SUBVOL" ]; then root_state="present"; else root_state="missing"; fi
+    [ "$first" = 1 ] || printf ','
+    first=0
+    printf '{"id":"%s","label":"%s","created":"%s","root":"%s"}' \
+      "$(basename "$entry")" "${label//\"/}" "${created//\"/}" "$root_state"
+  done
+  printf ']\n'
 }
 
 cmd_list() {
@@ -183,7 +200,10 @@ main() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in
     create)     cmd_create "${1:-manual}" ;;
-    list)       cmd_list ;;
+    list)
+      # `list --json` for the GUI / AI: the padded table is for humans only
+      if [ "${1:-}" = "--json" ]; then cmd_list_json; else cmd_list; fi
+      ;;
     boot-entry) cmd_boot_entry "${1:-}" ;;
     promote)    cmd_promote "${1:-}" ;;
     delete)     cmd_delete "${1:-}" ;;
