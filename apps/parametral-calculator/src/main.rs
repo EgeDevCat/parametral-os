@@ -158,18 +158,28 @@ impl eframe::App for Calculator {
             });
             ui.add_space(10.0);
 
-            // display
+            // display — fixed height, right-aligned, history above the value
             egui::Frame::none()
                 .fill(CARD)
                 .rounding(14.0)
-                .inner_margin(16.0)
+                .inner_margin(egui::Margin::same(16.0))
                 .show(ui, |ui| {
-                    ui.set_min_height(86.0);
-                    ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-                        let text = if self.entry.is_empty() { "0".to_string() } else { self.entry.clone() };
-                        ui.label(RichText::new(text).size(38.0).color(INK).monospace());
+                    ui.set_width(ui.available_width());
+                    ui.set_height(86.0);
+                    ui.with_layout(egui::Layout::top_down(egui::Align::Max), |ui| {
+                        let text = if self.entry.is_empty() {
+                            "0".to_string()
+                        } else {
+                            self.entry.clone()
+                        };
+                        ui.label(RichText::new(text).size(34.0).color(INK).monospace());
+                        ui.add_space(4.0);
                         if let Some(err) = &self.error {
-                            ui.label(RichText::new(err).size(14.0).color(Color32::from_rgb(224, 138, 122)));
+                            ui.label(
+                                RichText::new(err)
+                                    .size(14.0)
+                                    .color(Color32::from_rgb(224, 138, 122)),
+                            );
                         } else if let Some(last) = self.history.last() {
                             ui.label(RichText::new(last).size(14.0).color(MUTED));
                         }
@@ -183,8 +193,10 @@ impl eframe::App for Calculator {
                 ["7", "8", "9", "*"],
                 ["4", "5", "6", "-"],
                 ["1", "2", "3", "+"],
-                ["⌫", "0", ".", "="],
+                ["DEL", "0", ".", "="],
             ];
+
+            ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
 
             for row in keys {
                 ui.horizontal(|ui| {
@@ -203,7 +215,7 @@ impl eframe::App for Calculator {
                         if ui.add(btn).clicked() {
                             match k {
                                 "C" => self.clear(),
-                                "⌫" => self.backspace(),
+                                "DEL" => self.backspace(),
                                 "=" => self.evaluate(),
                                 "(" | ")" => self.entry.push_str(k),
                                 "." => {
