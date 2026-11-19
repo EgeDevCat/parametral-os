@@ -4,22 +4,18 @@
 //! snapshots, adds boot entries and promotes a snapshot back to `@`. This window is a thin
 //! front end and says so — destructive actions ask twice, and root work goes through pkexec
 //! (polkit), never through a setuid helper of ours.
+//!
+//! Look comes from parametral-ui so this window and the AI window are the same product.
 
 use std::process::Command;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Duration, Instant};
 
 use eframe::egui;
-use egui::{Color32, RichText};
+use egui::RichText;
 use serde_json::Value;
 
-const BG: Color32 = Color32::from_rgb(11, 15, 20);
-const CARD: Color32 = Color32::from_rgb(20, 25, 32);
-const TEXT: Color32 = Color32::from_rgb(233, 228, 216);
-const MUTED: Color32 = Color32::from_rgb(154, 164, 178);
-const AMBER: Color32 = Color32::from_rgb(224, 169, 59);
-const DANGER: Color32 = Color32::from_rgb(214, 96, 86);
-const OK: Color32 = Color32::from_rgb(126, 174, 104);
+use parametral_ui as kit;
 
 const TOOL: &str = "/usr/local/bin/parametral-snapshot";
 
@@ -40,7 +36,7 @@ struct App {
     snaps: Vec<Snap>,
     label: String,
     status: String,
-    status_colour: Color32,
+    status_ok: Option<bool>,
     pending_restore: Option<String>,
     last_poll: Instant,
     tx: Sender<Msg>,
@@ -92,13 +88,14 @@ fn parse_list(raw: &str) -> Result<Vec<Snap>, String> {
 }
 
 impl App {
-    fn new() -> Self {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        style(&cc.egui_ctx);
         let (tx, rx) = channel();
         Self {
             snaps: Vec::new(),
             label: String::new(),
             status: "Yükleniyor…".into(),
-            status_colour: MUTED,
+            status_ok: None,
             pending_restore: None,
             last_poll: Instant::now() - Duration::from_secs(30),
             tx,
@@ -125,11 +122,8 @@ impl App {
         let tx = self.tx.clone();
         std::thread::spawn(move || {
             let refs: Vec<&str> = args.iter().map(String::as_str).collect();
-            let result = if refs.first().map(|s| *s == "create").unwrap_or(false) {
-                run(&refs)
-            } else {
-                run_root(&refs)
-            };
+            let needs_root = !matches!(refs.first(), Some(&"create"));
+            let result = if needs_root { run_root(&refs) } else { run(&refs) };
             let (text, ok) = match result {
                 Ok(_) => (ok_text.to_string(), true),
                 Err(e) => (e, false),
@@ -144,17 +138,32 @@ impl App {
                 Msg::Listed(list, summary) => {
                     self.snaps = list;
                     self.status = summary;
-                    self.status_colour = MUTED;
+                    self.status_ok = None;
                 }
                 Msg::Done(text, ok) => {
                     self.status = text;
-                    self.status_colour = if ok { OK } else { DANGER };
+                    self.status_ok = Some(ok);
                     self.last_poll = Instant::now() - Duration::from_secs(30);
                 }
             }
             self.last_poll = Instant::now();
         }
     }
+}
+
+/// egui defaults look like a form toolkit; these few lines are what make a window feel built.
+fn style(ctx: &egui::Context) {
+    let mut style = (*ctx.style()).clone();
+    style.visuals.panel_fill = kit::BG;
+    style.visuals.window_fill = kit::BG;
+    style.visuals.extreme_bg_color = kit::SURFACE;
+    style.visuals.override_text_color = Some(kit::TEXT);
+    style.spacing.item_spacing = egui::vec2(kit::GAP, kit::GAP);
+    style.spacing.button_padding = egui::vec2(12.0, 6.0);
+    style.visuals.widgets.noninteractive.bg_stroke = kit::hairline();
+    style.visuals.selection.bg_fill = kit::AMBER;
+    style.visuals.selection.stroke = egui::Stroke::new(1.0, kit::ON_AMBER);
+    ctx.set_style(style);
 }
 
 impl eframe::App for App {
@@ -167,45 +176,37 @@ impl eframe::App for App {
         ctx.request_repaint_after(Duration::from_millis(900));
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::none().fill(BG).inner_margin(18.0))
+            .frame(egui::Frame::none().fill(kit::BG).inner_margin(kit::PAGE))
             .show(ctx, |ui| {
+                kit::header(ui, "snapshots", "snapshot");
+
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new("Parametral").color(AMBER).size(22.0).strong());
-                    ui.label(RichText::new("snapshot").color(TEXT).size(16.0));
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui
-                            .add(egui::Button::new(RichText::new("Yenile").color(TEXT)).fill(CARD))
-                            .clicked()
-                        {
+                    ui.vertical(|ui| {
+                        ui.label(kit::display("Snapshot'lar"));
+                        ui.label(kit::meta(
+                            "Bir şey bozulursa buradan geri dönülür. Kayıtlar salt-okunur; \
+                             geri dönüş yeniden başlatmada uygulanır.",
+                        ));
+                    });
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                        if kit::ghost_button(ui, "Yenile").clicked() {
                             self.refresh();
                         }
                     });
                 });
-                ui.label(
-                    RichText::new(
-                        "Bir şey bozulursa buradan geri dönülür. Snapshot'lar salt-okunur; \
-                         geri dönmek için yeniden başlatma gerekir.",
-                    )
-                    .color(MUTED)
-                    .size(11.0),
-                );
-                ui.add_space(12.0);
 
-                egui::Frame::none().fill(CARD).rounding(10.0).inner_margin(12.0).show(ui, |ui| {
+                ui.add_space(kit::PAD);
+
+                kit::panel(ui, |ui| {
                     ui.horizontal(|ui| {
-                        ui.label(RichText::new("Yeni snapshot:").color(MUTED).size(11.0));
+                        ui.label(kit::meta("Yeni snapshot"));
+                        ui.add_space(6.0);
                         ui.add(
                             egui::TextEdit::singleline(&mut self.label)
                                 .hint_text("etiket (ör. kurulum-öncesi)")
-                                .desired_width(220.0),
+                                .desired_width(240.0),
                         );
-                        if ui
-                            .add(
-                                egui::Button::new(RichText::new("Oluştur").color(Color32::from_rgb(26, 21, 9)))
-                                    .fill(AMBER),
-                            )
-                            .clicked()
-                        {
+                        if kit::primary_button(ui, "Oluştur").clicked() {
                             let label = if self.label.trim().is_empty() {
                                 "manuel".to_string()
                             } else {
@@ -215,17 +216,16 @@ impl eframe::App for App {
                         }
                     });
                 });
-                ui.add_space(12.0);
+
+                kit::section(ui, "kayıtlar");
 
                 if self.snaps.is_empty() {
-                    ui.add_space(20.0);
+                    ui.add_space(18.0);
                     ui.vertical_centered(|ui| {
-                        ui.label(RichText::new("Henüz snapshot yok").color(TEXT).size(15.0));
-                        ui.label(
-                            RichText::new("Kurulum ve uygulama işlemleri öncesi otomatik alınır.")
-                                .color(MUTED)
-                                .size(11.0),
-                        );
+                        kit::mark(ui, 42.0, kit::MUTED);
+                        ui.add_space(6.0);
+                        ui.label(kit::title("Henüz snapshot yok"));
+                        ui.label(kit::meta("Kurulum ve uygulama işlemleri öncesi otomatik alınır."));
                     });
                 }
 
@@ -233,28 +233,28 @@ impl eframe::App for App {
                     let mut act: Option<(Vec<String>, &'static str)> = None;
                     for snap in &self.snaps {
                         let pending = self.pending_restore.as_deref() == Some(snap.id.as_str());
-                        egui::Frame::none().fill(CARD).rounding(10.0).inner_margin(12.0).show(ui, |ui| {
+                        kit::hover_card(ui, |ui, hovered| {
                             ui.horizontal(|ui| {
-                                ui.label(RichText::new(&snap.label).color(AMBER).size(14.0).strong());
+                                ui.vertical(|ui| {
+                                    let name = if snap.label.is_empty() { "etiket yok" } else { &snap.label };
+                                    ui.label(RichText::new(name).size(14.0).color(
+                                        if hovered { kit::AMBER } else { kit::TEXT },
+                                    ).strong());
+                                    ui.label(kit::mono(&snap.id));
+                                });
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(
-                                        RichText::new(if snap.root == "present" { &snap.created } else { "eksik" })
-                                            .color(MUTED)
-                                            .size(10.5),
-                                    );
+                                    ui.label(kit::meta(if snap.root == "present" {
+                                        &snap.created
+                                    } else {
+                                        "kök eksik"
+                                    }));
                                 });
                             });
-                            ui.label(RichText::new(&snap.id).color(MUTED).size(10.0).monospace());
-                            ui.add_space(8.0);
+                            ui.add_space(10.0);
                             ui.horizontal(|ui| {
-                                let restore_label = if pending { "Emin misin? Geri dön" } else { "Bu ana dön" };
-                                if ui
-                                    .add(
-                                        egui::Button::new(RichText::new(restore_label).color(TEXT))
-                                            .fill(Color32::from_rgb(60, 32, 30)),
-                                    )
-                                    .clicked()
-                                {
+                                let restore_label =
+                                    if pending { "Emin misin? Geri dön" } else { "Bu ana dön" };
+                                if kit::danger_button(ui, restore_label).clicked() {
                                     if pending {
                                         act = Some((
                                             vec!["promote".into(), snap.id.clone()],
@@ -264,24 +264,18 @@ impl eframe::App for App {
                                         self.pending_restore = Some(snap.id.clone());
                                     }
                                 }
-                                if ui
-                                    .add(egui::Button::new(RichText::new("Önyükleme girdisi").color(TEXT)).fill(CARD))
-                                    .clicked()
-                                {
+                                if kit::ghost_button(ui, "Önyükleme girdisi").clicked() {
                                     act = Some((
                                         vec!["boot-entry".into(), snap.id.clone()],
                                         "Önyükleme girdisi eklendi",
                                     ));
                                 }
-                                if ui
-                                    .add(egui::Button::new(RichText::new("Sil").color(MUTED)).fill(CARD))
-                                    .clicked()
-                                {
+                                if kit::ghost_button(ui, "Sil").clicked() {
                                     act = Some((vec!["delete".into(), snap.id.clone()], "Snapshot silindi"));
                                 }
                             });
                         });
-                        ui.add_space(8.0);
+                        ui.add_space(kit::GAP);
                     }
                     if let Some((args, text)) = act {
                         self.action(args, text);
@@ -289,7 +283,7 @@ impl eframe::App for App {
                 });
 
                 ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                    ui.label(RichText::new(&self.status).color(self.status_colour).size(11.0));
+                    kit::status_bar(ui, &self.status, self.status_ok);
                 });
             });
     }
@@ -298,10 +292,14 @@ impl eframe::App for App {
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([660.0, 500.0])
-            .with_min_inner_size([520.0, 380.0])
+            .with_inner_size([680.0, 520.0])
+            .with_min_inner_size([540.0, 400.0])
             .with_title("Parametral — snapshot"),
         ..Default::default()
     };
-    eframe::run_native("Parametral snapshots", options, Box::new(|_cc| Ok(Box::new(App::new()))))
+    eframe::run_native(
+        "Parametral snapshots",
+        options,
+        Box::new(|cc| Ok(Box::new(App::new(cc)))),
+    )
 }

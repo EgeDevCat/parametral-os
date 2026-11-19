@@ -1,1 +1,1 @@
-/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-snapshots/target/release/parametral-snapshots: /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-snapshots/src/main.rs
+/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-snapshots/target/release/parametral-snapshots: /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-snapshots/src/main.rs /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-ui/src/lib.rs
