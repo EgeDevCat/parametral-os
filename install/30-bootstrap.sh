@@ -11,6 +11,7 @@ pacstrap /mnt \
   base base-devel linux linux-lts linux-firmware \
   btrfs-progs dosfstools e2fsprogs cryptsetup sudo efibootmgr \
   networkmanager openssh vim git less nix \
+  python \
   plasma-meta sddm konsole dolphin kate
 
 echo "==> fstab"
