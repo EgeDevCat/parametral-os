@@ -280,6 +280,14 @@ def cmd_approvals(args) -> int:
     store = ApprovalStore(state_dir, os.path.join(util.runtime_dir(), "approver.pub"),
                           node_id=args.node_id,
                           approver_sk_path=os.path.join(util.runtime_dir(), "approver.sk"))
+    if args.action == "keygen":
+        from . import ed25519 as _ed
+
+        sk = args.key or os.path.join(util.runtime_dir(), "approver.sk")
+        pub = args.pub or os.path.join(util.runtime_dir(), "approver.pub")
+        _secret, public = _ed.keygen(sk, pub)
+        _print({"signing_key": sk, "public_key": pub, "key_id": _ed.key_id(public)})
+        return 0
     if args.action == "list":
         _print({"approvals": store.list(state=args.state_filter)})
         return 0
@@ -488,6 +496,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     approvals = sub.add_parser("approvals", help="human approval gate")
     approvals_sub = approvals.add_subparsers(dest="action", required=True)
+    keygen = approvals_sub.add_parser("keygen", help="create the approver Ed25519 keypair")
+    keygen.add_argument("--key", default=None)
+    keygen.add_argument("--pub", default=None)
+    keygen.set_defaults(func=cmd_approvals)
     listing = approvals_sub.add_parser("list")
     listing.add_argument("--state-filter", default=None)
     listing.set_defaults(func=cmd_approvals)
