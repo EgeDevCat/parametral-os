@@ -29,7 +29,7 @@ auto-entries yes
 auto-firmware yes
 EOF
 
-CMDLINE_COMMON="rw add_efi_memmap quiet nowatchdog"
+CMDLINE_COMMON="rw add_efi_memmap quiet splash vt.global_cursor_default=0 nowatchdog"
 if [ "${PARAMETRAL_LUKS:-0}" = "1" ]; then
   CMDLINE_COMMON="cryptdevice=UUID=${PARAMETRAL_LUKS_UUID}:cryptroot root=/dev/mapper/cryptroot $CMDLINE_COMMON"
 else
