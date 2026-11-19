@@ -61,6 +61,13 @@ cat > /etc/xdg/konsolerc <<'EOF'
 DefaultProfile=Parametral.profile
 EOF
 
+# Splash: our boot screen (look-and-feel package carries contents/splash)
+cat > /etc/xdg/ksplashrc <<'EOF'
+[KSplash]
+Theme=org.parametral.desktop
+Engine=none
+EOF
+
 # Lock screen: the greeter renders "wallpaper" from this image path. Set here so every
 # account gets our background without touching Breeze's lockscreen QML.
 cat > /etc/xdg/kscreenlockerrc <<'EOF'

@@ -133,7 +133,9 @@ ShellRoot {
             Item { Layout.fillWidth: true }
 
             // ---- tray -----------------------------------------------------
+            // an empty island reads as a rendering bug, so it only exists with tray items
             Island {
+                visible: SystemTray.items.values.length > 0
                 Layout.preferredWidth: Math.max(56, trayRow.implicitWidth + 24)
                 Layout.fillHeight: true
 
