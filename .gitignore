@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+proofs/*.txt
+bin/seccomp_guard
+state/
