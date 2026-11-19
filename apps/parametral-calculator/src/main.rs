@@ -5,7 +5,7 @@
 //! app menu) before we add the bigger tools.
 
 use eframe::egui;
-use egui::{Color32, FontId, RichText};
+use egui::{Color32, RichText};
 
 const BG: Color32 = Color32::from_rgb(13, 15, 18);
 const CARD: Color32 = Color32::from_rgb(25, 29, 36);
