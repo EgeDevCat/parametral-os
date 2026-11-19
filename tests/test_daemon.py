@@ -244,12 +244,14 @@ class DaemonTest(unittest.TestCase):
         self.assertEqual(granted["approval_id"], approval_id)
         self.assertIn("app.install", granted["ops"])
 
-        with self.assertRaises(ClientError) as unsupported:
+        # The manifest is validated before anything runs: an install nobody can verify
+        # is refused, not attempted.
+        with self.assertRaises(ClientError) as invalid:
             self.client.call("v1.app.install", sandbox_id=self.sandbox_id,
                              manifest={"name": "ripgrep", "version": "14.1.1"},
                              capability_token=granted["capability_token"])
-        self.assertEqual(unsupported.exception.code, -32008)
-        self.assertEqual(unsupported.exception.data["milestone"], "phase-2")
+        self.assertEqual(invalid.exception.code, -32602)
+        self.assertIn("flake_ref", invalid.exception.message)
 
     def test_rejected_approval_cannot_mint_a_token(self):
         with self.assertRaises(ClientError) as raised:

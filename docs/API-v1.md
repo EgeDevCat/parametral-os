@@ -1,6 +1,6 @@
 # Ultra SI OS — Tool API, **v1**
 
-Status: **FROZEN (v1.2.0)** — 2026-11-19  (v1.0.0 + host-tier methods; 1.1.1 pinned Ed25519 and the closed tier-1 presets; 1.2.0 implements `snapshot.*`; see §11)
+Status: **FROZEN (v1.3.0)** — 2026-11-19  (v1.0.0 + host-tier methods; 1.1.1 pinned Ed25519 and the closed tier-1 presets; 1.2.0 implemented `snapshot.*`; 1.3.0 implements `app.*`; see §11)
 Owner of this document: OS-layer team (this repo). Consumer: Ultra SI local AI (Berkay).
 Change control: additive only, see §11.
 
@@ -193,9 +193,9 @@ A token whose `exp` is in the past is rejected even if its signature is valid.
 | `v1.fs.edit` | `fs.write` | implemented |
 | `v1.fs.list` | `fs.read` | implemented |
 | `v1.fs.delete` | `fs.write` | implemented |
-| `v1.app.install` | `app.install` | contract frozen, daemon answers `-32008` (phase 2) |
-| `v1.app.remove` | `app.remove` | contract frozen, daemon answers `-32008` (phase 2) |
-| `v1.app.verify` | `app.read` | contract frozen, daemon answers `-32008` (phase 2) |
+| `v1.app.install` | `app.install` | implemented (source `nix`; approval-gated) |
+| `v1.app.remove` | `app.remove` | implemented (approval-gated) |
+| `v1.app.verify` | `app.read` | implemented (re-runs the manifest's verify step) |
 | `v1.snapshot.create` | `snapshot.create` | implemented (btrfs, unprivileged) |
 | `v1.snapshot.list` | `snapshot.list` | implemented |
 | `v1.snapshot.restore` | `snapshot.restore` | implemented (approval + `confirm:true`) |
@@ -376,28 +376,51 @@ Path rules: absolute, sandbox-internal; `..` escape, symlink escape, or access o
 with `severity:"security"`). Reads > `max_bytes` are truncated, never error.
 
 ### 5.9 Application lifecycle — `app.install` / `app.remove` / `app.verify`
-Token ops: `app.install`, `app.remove`, `app.read` (verify/status).
+Token ops: `app.install`, `app.remove`, `app.read` (verify/status). **Implemented** for
+`source:"nix"`; `source:"artifact"` answers `-32008` with `milestone:"phase-2b"`.
+
+**Manifest v1** (validated before anything runs — no verify command, no install):
 
 ```json
-// v1.app.install
-{"node_id":"local","sandbox_id":"sbx_7f3a1c",
- "manifest":{"name":"ripgrep","version":"14.1.1",
-             "source":"apt | artifact | git","artifact_url":"https://…/ripgrep.deb",
-             "sha256":"…","dependencies":["libpcre2-8-0"],
-             "install_cmd":["nix","profile","install","nixpkgs#ripgrep"],
-             "verify":{"cmd":["rg","--version"],"expect_exit":0,"expect_stdout_contains":"ripgrep"}},
- "attempt_limit":3}
-→ {"app_id":"app_2b91","state":"installed","attempts":1,"verify":{"passed":true,"exit_code":0},
-   "duration_ms":18422,"audit_ref":"aud_…"}
+{"name":"ripgrep","version":"14.1.1","source":"nix",
+ "flake_ref":"nixpkgs#ripgrep",
+ "flake_lock":"sha256-…",
+ "verify":{"cmd":["rg","--version"],"expect_exit":0,"expect_stdout_contains":"ripgrep"},
+ "permissions":{"network":["cache.nixos.org:443"],"write_dirs":["/work/appdata"],
+                "ipc":["sbx_7f3a1c"]}}
 ```
 
-`attempt_limit` default 3, **hard max 3**. Each attempt is audited separately. On final
-failure the result is `state:"failed"` with `attempts`, per-attempt `failures[]`
-(`stage`, `exit_code`, `stderr_tail` ≤4 KiB) and `diagnosis` — never a silent success, never a
-swallowed exception. `sha256` mismatch → abort before install (`-32007`).
+- `name`: `[a-z0-9][a-z0-9._+-]{0,63}` · `flake_ref`: `nixpkgs#attr` or `github:o/r#attr`
+- `flake_lock`: pinned hash (strings that look like `sha256-…` or 64 hex chars); the lock is
+  recorded in the result so a later update is a decision, not a surprise.
+- `verify` is **mandatory**: `cmd` (argv), `expect_exit` (default 0), optional
+  `expect_stdout_contains`. An install nobody can check is refused with `-32602`.
+- `permissions` declares what the app is allowed to use: `network` (host:port list),
+  `write_dirs` (absolute, inside `/work`), `ipc` (sandbox ids). The pipeline records them and
+  refuses malformed values; D5 wires them to the nftables rules.
 
-`app.verify` re-runs `verify` without installing. `app.remove` reverses install and is followed
-by a snapshot rollback offer (phase 4).
+Pipeline (each step observable in the result):
+
+1. validate manifest → 2. `snapshot.create` (`pre-install-<name>`, when btrfs is available) →
+3. `nix profile install` **inside the sandbox** with `--option builders ''`,
+   `--option substituters https://cache.nixos.org`, `--option require-sigs true`
+   (the store is read-only in the sandbox; writes go through the host `nix-daemon` socket) →
+4. verify (real argv, real exit code) → 5. retry up to `attempt_limit` (max 3) →
+6. report.
+
+```json
+{"app_id":"app_2b91","state":"installed","attempts":1,
+ "verify":{"passed":true,"exit_code":0,"stdout_tail":"ripgrep 14.1.1\n"},
+ "snapshot_id":"snap_…","flake_lock":"sha256-…","duration_ms":18422,
+ "permissions":{"network":[],"write_dirs":["/work/appdata"],"ipc":[]},
+ "failures":[],"diagnosis":null}
+```
+
+Failure is data, never silence: `state:"failed"`, `attempts` (≤3), `failures[]` with
+`stage` (`install`/`verify`), `exit_code`, `timed_out`, and a ≤4 KiB `stderr_tail` per attempt,
+plus a `diagnosis` string that names the likely cause (substituter unreachable, bad attribute,
+signature rejected, or "install worked, verify fails"). `rollback` is
+`nix profile rollback --profile /work/.nix-profile`; the pre-install snapshot is the second net.
 
 ### 5.10 Snapshots — `snapshot.create` / `snapshot.list` / `snapshot.restore`
 Token ops: `snapshot.create`, `snapshot.list`, `snapshot.restore`. **Implemented** as read-only
@@ -592,10 +615,10 @@ Every request that changed state, every denied request, and every approval write
 3. Clients MUST ignore unknown result fields and unknown `data` fields.
 4. Servers MUST ignore unknown params fields (except where documented as validated).
 5. `features[]` from `v1.node.hello` is the negotiation channel for optional behavior.
-6. This document is semantic-versioned: doc `1.2.0` ↔ `v1` wire (1.1.0 added the `host.*`
+6. This document is semantic-versioned: doc `1.3.0` ↔ `v1` wire (1.1.0 added the `host.*`
    methods and the oracle stage; 1.1.1 pinned Ed25519 signatures, the closed tier-1 preset list
-   and the runtime rule-file watch; 1.2.0 implements `snapshot.*`. No existing signature has
-   ever changed.) Any doc change bumps the
+   and the runtime rule-file watch; 1.2.0 implemented `snapshot.*`; 1.3.0 implements `app.*`
+   with the manifest v1 schema above. No existing signature has ever changed.) Any doc change bumps the
    patch and lands with a test in `tests/test_api_contract.py`.
 
 ---

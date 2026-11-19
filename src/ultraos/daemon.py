@@ -18,7 +18,7 @@ import threading
 import time
 import traceback
 
-from . import hostapply, util
+from . import appinstall, hostapply, util
 from .approvals import ApprovalError, ApprovalStore, desktop_notifier
 from .audit import AuditLog
 from .harddeny import HardDenyClient, HardDenyUnavailable
@@ -128,6 +128,10 @@ class UltraOsDaemon:
             "pids": 128,
             "disk_mb": 256,
         })
+        self.installer = appinstall.Installer(
+            self.sandboxes,
+            nix_bin=os.environ.get("ULTRAOS_NIX_BIN", "nix"),
+            state_root=self.state_dir)
         self._idempotency: dict[str, tuple[float, dict]] = {}
         self._idem_lock = threading.Lock()
         self.handlers = {
@@ -150,9 +154,9 @@ class UltraOsDaemon:
             "v1.fs.delete": self._fs_delete,
             "v1.audit.query": self._audit_query,
             "v1.audit.verify": self._audit_verify,
-            "v1.app.install": self._not_yet_phase_2,
-            "v1.app.remove": self._not_yet_phase_2,
-            "v1.app.verify": self._not_yet_phase_2,
+            "v1.app.install": self._app_install,
+            "v1.app.remove": self._app_remove,
+            "v1.app.verify": self._app_verify,
             "v1.snapshot.create": self._snapshot_create,
             "v1.snapshot.list": self._snapshot_list,
             "v1.host.apply": self._host_apply,
@@ -787,6 +791,45 @@ class UltraOsDaemon:
         return result
 
     # ------------------------------------------------------- reserved stubs
+
+    # ----------------------------------------------------- app lifecycle
+
+    def _manifest_from(self, params: dict) -> dict:
+        manifest = params.get("manifest")
+        if not isinstance(manifest, dict):
+            raise _invalid("manifest must be an object", "manifest")
+        return manifest
+
+    def _app_install(self, params: dict, _token) -> dict:
+        sandbox_id = _require_id(params, "sandbox_id")
+        manifest = self._manifest_from(params)
+        attempt_limit = params.get("attempt_limit")
+        try:
+            record = self.installer.install(sandbox_id, manifest,
+                                           attempt_limit=attempt_limit,
+                                           snapshot=bool(params.get("snapshot", True)))
+        except appinstall.ManifestError as exc:
+            code = -32602
+            if exc.code == "UNSUPPORTED":
+                code = CODE_UNSUPPORTED
+            raise RpcError(code, str(exc), {"ultraos_code": exc.code, **exc.detail}) from exc
+        return record
+
+    def _app_remove(self, params: dict, _token) -> dict:
+        sandbox_id = _require_id(params, "sandbox_id")
+        manifest = self._manifest_from(params)
+        try:
+            return self.installer.remove(sandbox_id, manifest)
+        except appinstall.ManifestError as exc:
+            raise RpcError(-32602, str(exc), {"ultraos_code": exc.code, **exc.detail}) from exc
+
+    def _app_verify(self, params: dict, _token) -> dict:
+        sandbox_id = _require_id(params, "sandbox_id")
+        manifest = self._manifest_from(params)
+        try:
+            return self.installer.verify(sandbox_id, manifest)
+        except appinstall.ManifestError as exc:
+            raise RpcError(-32602, str(exc), {"ultraos_code": exc.code, **exc.detail}) from exc
 
     def _host_apply(self, params: dict, _token) -> dict:
         """Tier-1: validate against the closed operation set, then refuse until phase 2.

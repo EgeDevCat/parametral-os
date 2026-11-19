@@ -214,7 +214,7 @@ class SandboxManager:
 
     def create(self, *, name: str, profile: str = "strict", limits: dict | None = None,
                net: bool = False, env: dict | None = None, mounts: list | None = None,
-               sandbox_id: str | None = None) -> dict:
+               sandbox_id: str | None = None, nix: bool = False) -> dict:
         if not isinstance(name, str) or not NAME_RE.match(name):
             raise SandboxError("INVALID_PARAMS",
                                "name must match [a-z0-9][a-z0-9._-]{0,62}")
@@ -227,6 +227,10 @@ class SandboxManager:
             net = True  # reserves the netns; still closed until a net.open token is used
         if profile == "strict" and net:
             raise SandboxError("INVALID_PARAMS", "profile 'strict' cannot request net")
+        if nix and not os.path.isdir("/nix/store"):
+            raise SandboxError("SANDBOX_UNAVAILABLE",
+                               "nix requested but this host has no /nix/store "
+                               "(install nix first)", {"field": "nix"})
 
         with self._lock:
             for existing in self.list():
@@ -261,6 +265,7 @@ class SandboxManager:
                 "state": "created",
                 "created_at": util.iso(),
                 "net": bool(net),
+                "nix": bool(nix),
                 "limits": effective.to_dict(),
                 "env": {str(k): str(v) for k, v in (env or {}).items()},
                 "mounts": mounts or [],
@@ -409,9 +414,10 @@ class SandboxManager:
 
     # ------------------------------------------------------------------- run
 
-    def _system_env(self, meta: dict) -> dict:
+    def _system_env(self, meta: dict, extra_path: list[str] | None = None) -> dict:
+        path_parts = list(extra_path or []) + ["/usr/local/bin", "/usr/bin", "/bin"]
         env = {
-            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            "PATH": ":".join(path_parts),
             "HOME": "/home/user",
             "TERM": "dumb",
             "LANG": "C.UTF-8",
@@ -427,6 +433,21 @@ class SandboxManager:
     def _bwrap_argv(self, meta: dict, cmd: list[str], cwd: str, env: dict,
                     rlimits: dict) -> list[str]:
         base = self._dir(meta["sandbox_id"])
+        # nix runtime: the store is READ-ONLY inside the sandbox; every write goes through
+        # the host's nix-daemon socket, which is bind-mounted for exactly that reason.
+        if meta.get("nix"):
+            if os.path.isdir("/nix/store"):
+                argv_nix = ["--ro-bind", "/nix/store", "/nix/store"]
+            else:
+                argv_nix = []
+            daemon_socket = "/nix/var/nix/daemon-socket"
+            if os.path.exists(daemon_socket):
+                argv_nix += ["--ro-bind", daemon_socket, daemon_socket]
+                env["NIX_REMOTE"] = "daemon"
+            env.setdefault("NIX_CONFIG", "builders = \nrequire-sigs = true")
+            argv_nix_prefix = argv_nix
+        else:
+            argv_nix_prefix = []
         argv = ["bwrap", "--unshare-all", "--die-with-parent", "--new-session",
                 "--ro-bind", "/usr", "/usr",
                 "--symlink", "usr/lib", "/lib",
@@ -444,6 +465,7 @@ class SandboxManager:
             if os.path.exists(host_path):
                 argv += ["--ro-bind-try", host_path, host_path]
 
+        argv += argv_nix_prefix
         argv += ["--proc", "/proc", "--dev", "/dev",
                  "--size", str(64 * MI), "--tmpfs", "/tmp",
                  "--bind", meta["root"], "/work",
@@ -469,11 +491,15 @@ class SandboxManager:
 
     def run(self, sandbox_id: str, cmd: list[str], *, cwd: str = "/work",
             env: dict | None = None, timeout_s: int = 30,
-            max_output_bytes: int = 65536) -> dict:
+            max_output_bytes: int = 65536, extra_path: list[str] | None = None) -> dict:
         meta = self.get(sandbox_id)
         if meta.get("state") != "created":
             raise SandboxError("CONFLICT", f"sandbox {sandbox_id} is {meta.get('state')}")
-        if not isinstance(cmd, list) or not cmd or not all(isinstance(part, str) and part for part in cmd):
+        if (not isinstance(cmd, list) or not cmd
+                or not all(isinstance(part, str) for part in cmd)
+                or not cmd[0]):
+            # Empty *arguments* are legitimate (`--option builders ""`); an empty
+            # argv[0] is not.
             raise SandboxError("INVALID_PARAMS", "cmd must be a non-empty array of strings")
         if not os.path.exists(self.guard_path):
             raise SandboxError("SANDBOX_UNAVAILABLE",
@@ -489,7 +515,7 @@ class SandboxManager:
         rlimits = {"as": limits.memory_mb * MI,
                    "cpu": timeout_s + 5,
                    "fsize": limits.disk_mb * MI}
-        run_env = self._system_env(meta)
+        run_env = self._system_env(meta, extra_path)
         run_env.update({str(k): str(v) for k, v in (env or {}).items()
                         if re.fullmatch(r"[A-Z_][A-Z0-9_]*", str(k))
                         and str(k) not in ("PATH", "HOME", "LD_PRELOAD", "LD_LIBRARY_PATH")})
