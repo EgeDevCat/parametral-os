@@ -1,5 +1,0 @@
-/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/quote/e518c90031c6f013/out/build_script_build.d: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quote-1.0.47/build.rs
-
-/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/quote/e518c90031c6f013/out/build_script_build: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quote-1.0.47/build.rs
-
-/home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/quote-1.0.47/build.rs:

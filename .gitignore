@@ -3,3 +3,4 @@ __pycache__/
 proofs/*.txt
 bin/seccomp_guard
 state/
+apps/parametral-calculator/target/

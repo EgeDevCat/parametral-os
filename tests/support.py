@@ -21,7 +21,7 @@ class Harness:
     """Starts parametrald on a private socket + state dir; cleans up on close()."""
 
     def __init__(self, policy: str | None = None):
-        from parametral.daemon import UltraOsDaemon, UltraOsServer
+        from parametral.daemon import ParametralDaemon, ParametralServer
 
         self.tmp = tempfile.mkdtemp(prefix="parametral-test-")
         self.state = os.path.join(self.tmp, "state")
@@ -59,12 +59,12 @@ class Harness:
             if os.path.exists(self.harddeny_socket):
                 break
             time.sleep(0.01)
-        self.daemon = UltraOsDaemon(policy_path=policy or POLICY, state_dir=self.state,
+        self.daemon = ParametralDaemon(policy_path=policy or POLICY, state_dir=self.state,
                                     socket_path=self.socket_path,
                                     notifier=lambda approval: None,
                                     harddeny_socket=self.harddeny_socket,
                                     harddeny_rules=self.harddeny_rules)
-        self.server = UltraOsServer(self.socket_path, self.daemon)
+        self.server = ParametralServer(self.socket_path, self.daemon)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         for _ in range(100):

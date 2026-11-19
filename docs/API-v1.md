@@ -223,7 +223,7 @@ Handshake + version negotiation. Must be the first call of a session.
 
 ```json
 // params
-{"node_id":"local","client_version":"ultra-si/0.1.0","protocol_versions":["v1"]}
+{"node_id":"local","client_version":"parametral/0.1.0","protocol_versions":["v1"]}
 // result
 {"node_id":"local","server_version":"0.1.0","protocol_versions":["v1"],
  "selected":"v1","features":["sandbox.bwrap","seccomp.blacklist","cgroup.v2","audit.chain"],
@@ -272,7 +272,7 @@ Exchanges a *justification* for a capability token. This is the only way to get 
 {"node_id":"local","operation":"exec.run",
  "scope":{"sandbox_id":"sbx_7f3a1c","commands":["git"]},
  "ttl_s":600,"justification":"user asked to install ripgrep",
- "requested_by":"ultra-si/0.1.0"}
+ "requested_by":"parametral/0.1.0"}
 // result (policy allows without approval)
 {"capability_token":"u1.…","expires_at":"2026-11-19T09:15:00Z","max_uses":25,
  "ops":["exec.run"],"scope":{…},"approval_id":null}

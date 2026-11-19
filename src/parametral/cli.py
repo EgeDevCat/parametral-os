@@ -19,7 +19,7 @@ from . import harddeny as hd
 from . import sysapply
 from .approvals import ApprovalStore
 from .client import Client, ClientError
-from .daemon import SERVER_VERSION, UltraOsDaemon
+from .daemon import SERVER_VERSION, ParametralDaemon
 from .sandbox import SandboxManager
 
 
@@ -51,13 +51,13 @@ def _auto_token(args, client: Client, operation: str, scope: dict, justification
 # --------------------------------------------------------------------- commands
 
 def cmd_serve(args) -> int:
-    daemon = UltraOsDaemon(policy_path=args.policy, state_dir=args.state,
+    daemon = ParametralDaemon(policy_path=args.policy, state_dir=args.state,
                            node_id=args.node_id, socket_path=args.socket,
                            harddeny_socket=args.harddeny_socket,
                            harddeny_rules=args.harddeny_rules)
-    from .daemon import UltraOsServer
+    from .daemon import ParametralServer
 
-    server = UltraOsServer(daemon.socket_path, daemon)
+    server = ParametralServer(daemon.socket_path, daemon)
     print(json.dumps({"event": "listening", "socket": daemon.socket_path,
                       "node_id": daemon.node_id, "policy_version": daemon.policy.version,
                       "audit_head": daemon.audit.head}), flush=True)

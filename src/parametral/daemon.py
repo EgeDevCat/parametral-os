@@ -99,7 +99,7 @@ def _require_id(params: dict, field: str) -> str:
     return value
 
 
-class UltraOsDaemon:
+class ParametralDaemon:
     def __init__(self, policy_path: str | None = None, state_dir: str | None = None,
                  node_id: str = "local", socket_path: str | None = None,
                  notifier=None, harddeny_socket: str | None = None,
@@ -1080,7 +1080,7 @@ class UltraOsDaemon:
 # --------------------------------------------------------------------- server
 
 class _Handler(socketserver.StreamRequestHandler):
-    daemon: UltraOsDaemon
+    daemon: ParametralDaemon
 
     def handle(self):
         peer = util.peer_uid(self.connection)
@@ -1129,11 +1129,11 @@ class _Handler(socketserver.StreamRequestHandler):
             return
 
 
-class UltraOsServer(socketserver.ThreadingUnixStreamServer):
+class ParametralServer(socketserver.ThreadingUnixStreamServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, socket_path: str, daemon: UltraOsDaemon):
+    def __init__(self, socket_path: str, daemon: ParametralDaemon):
         util.ensure_dir(os.path.dirname(socket_path), 0o700)
         util.try_unlink(socket_path)
         self.daemon_instance = daemon
@@ -1144,9 +1144,9 @@ class UltraOsServer(socketserver.ThreadingUnixStreamServer):
 
 def serve(policy_path: str | None = None, state_dir: str | None = None,
           node_id: str = "local", socket_path: str | None = None) -> None:
-    daemon = UltraOsDaemon(policy_path=policy_path, state_dir=state_dir,
+    daemon = ParametralDaemon(policy_path=policy_path, state_dir=state_dir,
                            node_id=node_id, socket_path=socket_path)
-    server = UltraOsServer(daemon.socket_path, daemon)
+    server = ParametralServer(daemon.socket_path, daemon)
     print(json.dumps({"event": "listening", "socket": daemon.socket_path,
                       "node_id": node_id, "policy_version": daemon.policy.version,
                       "audit_head": daemon.audit.head}), flush=True)

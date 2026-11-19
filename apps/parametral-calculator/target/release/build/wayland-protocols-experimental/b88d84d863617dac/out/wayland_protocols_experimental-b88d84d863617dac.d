@@ -1,8 +1,0 @@
-/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/wayland-protocols-experimental/b88d84d863617dac/out/wayland_protocols_experimental-b88d84d863617dac.d: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/lib.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/protocol_macro.rs
-
-/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/wayland-protocols-experimental/b88d84d863617dac/out/libwayland_protocols_experimental-b88d84d863617dac.rlib: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/lib.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/protocol_macro.rs
-
-/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/wayland-protocols-experimental/b88d84d863617dac/out/libwayland_protocols_experimental-b88d84d863617dac.rmeta: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/lib.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/protocol_macro.rs
-
-/home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/lib.rs:
-/home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-protocols-experimental-20250721.0.1/src/protocol_macro.rs:

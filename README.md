@@ -85,7 +85,7 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 ## Build and run (fish)
 
 ```fish
-cd ~/Desktop/Development/ultra-si-os
+cd ~/Desktop/Development/parametral-os
 make guard                 # static seccomp guard
 make test                  # 197 tests, expect "OK"
 make proof                 # writes proofs/isolation-proof.txt, expect "RESULT: PASS"
@@ -152,7 +152,7 @@ This repo is the **OS half**: gateway, policy, oracle, sandbox, snapshots, audit
 install kit. It exposes one contract (`docs/API-v1.md`) and executes nothing the contract does not
 name.
 
-The other half — the model family (Ultra SI), GC Shield training, the agent loop, the cascade and
+The other half — the model family, GC Shield training, the agent loop, the cascade and
 the 10 experts' training — lives in a separate project on the AI side. It reaches this system only
 through the JSON-RPC socket. GC Shield is **not** an OS component here: it lives in the weights,
 it has no socket, and no code in this repo queries it.

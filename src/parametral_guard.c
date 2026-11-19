@@ -1,5 +1,5 @@
 /*
- * ultraos seccomp_guard — syscall filter + rlimit applier + exec wrapper.
+ * Parametral seccomp_guard — syscall filter + rlimit applier + exec wrapper.
  *
  * Why this exists: bubblewrap 0.13's --seccomp fd contract could not be
  * validated on this kernel (the arch check misbehaved, producing SIGSYS on a

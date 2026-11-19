@@ -20,7 +20,7 @@ import support
 
 from parametral import harddeny as hd
 from parametral.client import Client, ClientError
-from parametral.daemon import UltraOsDaemon, UltraOsServer
+from parametral.daemon import ParametralDaemon, ParametralServer
 
 
 class EngineTest(unittest.TestCase):
@@ -226,11 +226,11 @@ class OracleDownTest(unittest.TestCase):
         self.tmp = tempfile.mkdtemp(prefix="parametral-hddown-")
         os.environ["XDG_RUNTIME_DIR"] = os.path.join(self.tmp, "run")
         socket_path = os.path.join(self.tmp, "control.sock")
-        self.daemon = UltraOsDaemon(state_dir=os.path.join(self.tmp, "state"),
+        self.daemon = ParametralDaemon(state_dir=os.path.join(self.tmp, "state"),
                                     socket_path=socket_path,
                                     notifier=lambda approval: None,
                                     harddeny_socket=os.path.join(self.tmp, "missing.sock"))
-        self.server = UltraOsServer(socket_path, self.daemon)
+        self.server = ParametralServer(socket_path, self.daemon)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.socket_path = socket_path

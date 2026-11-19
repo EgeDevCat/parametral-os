@@ -11,12 +11,12 @@ import unittest
 
 import support
 
-from parametral.daemon import UltraOsDaemon
+from parametral.daemon import ParametralDaemon
 
 DOC = support.REPO + "/docs/API-v1.md"
 METHOD_RE = re.compile(r"\bv1\.[a-z]+\.[a-z_]+(?:\.[a-z_]+)?\b")
 
-ULTRaOS_CODES = {
+PARAMETRAL_CODES = {
     "PARSE_ERROR", "INVALID_REQUEST", "METHOD_NOT_FOUND", "INVALID_PARAMS", "INTERNAL",
     "POLICY_DENIED", "TOKEN_REQUIRED", "TOKEN_INVALID", "APPROVAL_REQUIRED",
     "APPROVAL_PENDING", "NOT_FOUND", "LIMIT_EXCEEDED", "UNSUPPORTED",
@@ -49,7 +49,7 @@ class ApiContractTest(unittest.TestCase):
             self.assertTrue(method.startswith("v1."), method)
 
     def test_error_codes_are_documented(self):
-        for code in ULTRaOS_CODES:
+        for code in PARAMETRAL_CODES:
             self.assertIn(code, self.doc, f"error code {code} missing from the contract")
 
     def test_contract_is_frozen_at_v1(self):
