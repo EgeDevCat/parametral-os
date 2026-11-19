@@ -1,15 +1,24 @@
 // Parametral dock layout.
 //
 // Shipped inside the look-and-feel package, so a fresh account (or "Apply" in System
-// Settings → Global Theme) gets this instead of Plasma's default bar: a floating, centred
-// panel with the gauge launcher, icon-only tasks and the tray. Written against the API the
-// stock template uses (Panel, panel.height, panel.addWidget), because guessing newer keys
-// silently produces no panel at all.
+// Settings → Global Theme) gets this instead of Plasma's default bar: a tall bottom dock
+// with the gauge launcher, icon-only tasks, tray and clock.
+//
+// What this build actually honours, measured on Plasma 6.5 (Arch, 2026-11):
+//   panel.height            yes (≈64 px)
+//   panel.hiding            yes ("autohide": hidden until the pointer hits the edge)
+//   panel.floating          accepted by the API and written to the config, but NOT rendered —
+//                           the panel stays edge-to-edge. Do not rely on it for an island look.
+//   panel.minimum/maxLength accepted, also not rendered while the panel fills the screen
+//   panel.alignment         accepted, no visible effect on a full-width panel
+// The two "island" lines are kept because they are harmless here and correct on builds that
+// do render floating panels.
 
 var panel = new Panel
 var panelScreen = panel.screen
 
 panel.location = "bottom"
+panel.hiding = "autohide"
 
 // 3 gridUnits ≈ 56 px at 96 dpi: tall enough for 32 px icons, still a bar and not a slab.
 panel.height = 2 * Math.ceil(gridUnit * 3 / 2)
