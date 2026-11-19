@@ -158,6 +158,12 @@ def main():
     hostname = ask("Bilgisayar adı", "parametral")
     username = ask("Kullanıcı adı", "operator")
 
+    appearance = menu("Görünüm", [
+        "Parametral koyu — grafit + amber (önerilen)",
+        "Parametral açık — krem + amber",
+    ])
+    appearance = "light" if appearance == 1 else "dark"
+
     header("Kurulum · 4/5 — Parola")
     print(f"{DIM}Bu parola hem {username} hem disk şifrelemesi için kullanılacak.{OFF}")
     password = ask_secret("Parola")
@@ -167,6 +173,7 @@ def main():
     print(f"  şifreleme   : {BOLD}{'LUKS2' if luks == '1' else 'kapalı'}{OFF}")
     print(f"  bilgisayar  : {BOLD}{hostname}{OFF}")
     print(f"  kullanıcı   : {BOLD}{username}{OFF}")
+    print(f"  görünüm     : {BOLD}{'Parametral açık' if appearance == 'light' else 'Parametral koyu'}{OFF}")
     print(f"  masaüstü    : KDE Plasma (Parametral teması)")
     print()
     print(f"{RED}{BOLD}UYARI:{OFF} {target} üzerindeki TÜM veriler silinecek.")
@@ -179,6 +186,7 @@ def main():
         "PARAMETRAL_USER": username,
         "PARAMETRAL_PASSWORD": password,
         "PARAMETRAL_LUKS": luks,
+        "PARAMETRAL_APPEARANCE": appearance,
     }
 
     steps = [

@@ -18,6 +18,7 @@ EOF
 echo "==> KDE colour scheme"
 install -d /usr/share/color-schemes
 install -m 0644 "$SRC/branding/kde/Parametral.colors" /usr/share/color-schemes/Parametral.colors
+install -m 0644 "$SRC/branding/kde/ParametralLight.colors" /usr/share/color-schemes/ParametralLight.colors
 
 
 echo "==> cursor theme (Parametral, built from branding/cursors)"
@@ -47,6 +48,20 @@ echo "==> Konsole (markalı profil + renk şeması)"
 install -d /usr/share/konsole
 install -m644 "$SRC/branding/kde/konsole/Parametral.colorscheme" /usr/share/konsole/
 install -m644 "$SRC/branding/kde/konsole/Parametral.profile" /usr/share/konsole/
+
+echo "==> 'Parametral görünümüne dön' (users may change everything, this is the way back)"
+install -Dm755 "$SRC/branding/kde/parametral-reset-look.sh" /usr/local/bin/parametral-reset-look
+install -d /usr/share/applications
+cat > /usr/share/applications/parametral-reset-look.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Parametral görünümüne dön
+Comment=Renkleri, simgeleri, imleci ve duvar kağıdını Parametral varsayılanına döndür
+Exec=/usr/local/bin/parametral-reset-look
+Icon=parametral-start
+Terminal=false
+Categories=Settings;
+EOF
 
 echo "==> first-login hook (launcher icon + wallpaper per account)"
 install -Dm755 "$SRC/branding/kde/parametral-first-login.sh" \
