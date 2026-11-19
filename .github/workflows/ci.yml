@@ -29,6 +29,9 @@ jobs:
       - name: Unit and integration tests
         run: runuser -u tester -- make test
 
+      - name: Committed deny-list signature verifies with the committed public key
+        run: runuser -u tester -- env PYTHONPATH=src python3 -m parametral.cli harddeny verify
+
       - name: Isolation proof (bwrap must work in this runner)
         run: runuser -u tester -- make proof
 

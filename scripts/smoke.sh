@@ -15,7 +15,8 @@ echo "== starting parametral-harddeny =="
 python3 bin/parametral-harddeny --rules policy/hard_deny.v1.json --key "$KEY" \
   --socket "$PARAMETRAL_RUNTIME/harddeny.sock" > "$TMP/harddeny.log" 2>&1 &
 HD_PID=$!
-trap 'kill $HD_PID $OS_PID 2>/dev/null || true; rm -rf "$TMP"' EXIT
+OS_PID=""
+trap '[ -n "$HD_PID" ] && kill $HD_PID 2>/dev/null || true; [ -n "$OS_PID" ] && kill $OS_PID 2>/dev/null || true; rm -rf "$TMP"' EXIT
 
 for _ in $(seq 1 100); do [ -S "$PARAMETRAL_RUNTIME/harddeny.sock" ] && break; sleep 0.05; done
 [ -S "$PARAMETRAL_RUNTIME/harddeny.sock" ] || { echo 'parametral-harddeny did not start'; cat "$TMP/harddeny.log"; exit 1; }
