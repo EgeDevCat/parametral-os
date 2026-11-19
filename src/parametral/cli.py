@@ -14,6 +14,7 @@ import subprocess
 import sys
 
 from . import util
+from . import anchor as anchor_mod
 from . import harddeny as hd
 from . import sysapply
 from .approvals import ApprovalStore
@@ -295,6 +296,27 @@ def cmd_approvals(args) -> int:
 
 
 def cmd_audit(args) -> int:
+    if args.action in ("anchor", "anchor-verify"):
+        from .audit import AuditLog
+
+        state = args.state or util.state_dir()
+        out = args.out or os.path.join(state, "anchors")
+        sk = args.key or os.path.join(state, "keys", "anchor.ed25519.sk")
+        pub = args.pub or os.path.join(state, "keys", "anchor.ed25519.pub")
+        audit = AuditLog(os.path.join(state, "audit"), node_id=args.node_id)
+        try:
+            if args.action == "anchor":
+                record = anchor_mod.write_anchor(audit, out, sk, node_id=args.node_id)
+                _print({"anchored": True, "seq": record["payload"]["seq"],
+                        "head_hash": record["payload"]["head_hash"],
+                        "key_id": record["key_id"], "out": out})
+                return 0
+            result = anchor_mod.verify_anchors(audit, out, pub)
+            _print(result)
+            return 0 if (result["signatures_ok"] and result["chain_matches"]) else 1
+        except (anchor_mod.AnchorError, Exception) as exc:  # surfaced, never swallowed
+            print(json.dumps({"error": f"{type(exc).__name__}: {exc}"}), file=sys.stderr)
+            return 2
     with _client(args) as client:
         if args.action == "verify":
             _print(client.call("v1.audit.verify"))
@@ -482,6 +504,12 @@ def build_parser() -> argparse.ArgumentParser:
     audit = sub.add_parser("audit", help="audit trail")
     audit_sub = audit.add_subparsers(dest="action", required=True)
     audit_sub.add_parser("verify").set_defaults(func=cmd_audit)
+    for action in ("anchor", "anchor-verify"):
+        item = audit_sub.add_parser(action)
+        item.add_argument("--out", default=None, help="anchor directory (off-host target)")
+        item.add_argument("--key", default=None)
+        item.add_argument("--pub", default=None)
+        item.set_defaults(func=cmd_audit)
     tail = audit_sub.add_parser("tail")
     tail.add_argument("--from-seq", type=int, default=1)
     tail.add_argument("--limit", type=int, default=20)

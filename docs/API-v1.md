@@ -1,6 +1,6 @@
 # Parametral OS — Tool API, **v1**
 
-Status: **FROZEN (v1.4.0)** — 2026-11-19  (v1.0.0 + host-tier methods; 1.1.1 pinned Ed25519 and the closed tier-1 presets; 1.2.0 implemented `snapshot.*`; 1.3.0 `app.*`; 1.4.0 implements `host.apply` as a signed-job pipeline; see §11)
+Status: **FROZEN (v1.5.0)** — 2026-11-19  (v1.0.0 + host-tier methods; 1.1.1 pinned Ed25519 and the closed tier-1 presets; 1.2.0 implemented `snapshot.*`; 1.3.0 `app.*`; 1.4.0 implemented `host.apply`; 1.5.0 adds `net.*` grants; see §11)
 Owner of this document: OS-layer team (this repo). Consumer: Parametral local AI (Berkay).
 Change control: additive only, see §11.
 
@@ -188,6 +188,9 @@ A token whose `exp` is in the past is rejected even if its signature is valid.
 | `v1.sandbox.status` | — | implemented |
 | `v1.sandbox.destroy` | `sandbox.destroy` | implemented |
 | `v1.exec.run` | `exec.run` | implemented |
+| `v1.net.open` | `net.open` | implemented (allow-listed proxy, approval-gated) |
+| `v1.net.close` | `net.close` | implemented |
+| `v1.net.list` | `net.list` | implemented |
 | `v1.fs.read` | `fs.read` | implemented |
 | `v1.fs.write` | `fs.write` | implemented |
 | `v1.fs.edit` | `fs.write` | implemented |
@@ -474,6 +477,15 @@ Token: `audit.read` for query; `verify` needs none (read-only integrity check).
    "next_seq":115}
 ```
 
+### 5.12b Off-host audit anchors (operator CLI, not a wire method)
+
+`parametral audit anchor --out <dir>` appends `{seq, head_hash, created_at, sig}` to
+`<dir>/anchors.jsonl`, signed with the operator key. `parametral audit anchor-verify --out <dir>`
+returns `signatures_ok`, `chain_verified` and `chain_matches`; it fails when an anchor signature
+does not verify, when the chain no longer verifies, or when the local record at the anchored seq
+no longer hashes to the anchored value (rewritten/truncated log). Anchors are append-only and
+safe to copy to a git repo, object storage or a log collector.
+
 ### 5.13 Reserved for phase 5 (contract present, `-32008` now)
 `v1.node.peers`, `v1.node.dispatch`, `v1.snapshot.replicate`. **No swarm code exists in v1**
 (by design); these names are reserved so v2 clients never see a method change meaning.
@@ -530,6 +542,42 @@ Rules enforced by `sysapply` before anything runs:
 Failure semantics: `state:"rejected"` means nothing ran (`SIGNATURE_INVALID`,
 `SNAPSHOT_FAILED`, validation error); `state:"failed"` means a step ran and returned non-zero —
 the remaining steps are not executed and the snapshot id is returned for rollback.
+
+### 5.15 Network grants — `net.open` / `net.list` / `net.close`
+Token ops: `net.open` (approval-gated), `net.list`, `net.close`.
+
+The sandbox has **no network stack** (`--unshare-net`: no interfaces, no DNS, `connect()`
+fails everywhere). A grant does not change that. Instead it publishes *one Unix socket per
+approved destination* inside the sandbox, and a host-side proxy forwards only to the exact
+`host:port` pairs that were approved.
+
+```json
+// params
+{"node_id":"local","sandbox_id":"sbx_l_…","ttl_s":300,
+ "hosts":[{"host":"crates.io","port":443}]}
+// result
+{"grant_id":"net_9f2c1a4b7e","sandbox_id":"sbx_l_…",
+ "hosts":[{"host":"crates.io","port":443}],
+ "socket_dir":"/run/net",
+ "sockets":["/run/net/net_9f2c1a4b7e-443.sock"],
+ "expires_in_s":300,
+ "note":"the sandbox has no network stack; these Unix sockets are the only way out …"}
+```
+
+Semantics the caller can rely on:
+
+- `hosts` is the complete allow-list. The proxy refuses every other destination, and it
+  resolves nothing on its own: `10.0.0.0/8`, `localhost` and metadata addresses are only
+  reachable if the approver typed them.
+- The grant dies at `expires_in_s` (max 600 s per policy). Expired grants are swept; their
+  sockets disappear.
+- `net.list` shows live grants, `net.close` revokes one immediately (sockets are unlinked).
+- Every grant creation, connection and connection failure is an audit record
+  (`netproxy.*`), including the destination that was actually used.
+- A refused connection looks like a closed socket to the app — not a silent success.
+
+What this is not: a full packet filter. nftables rules are generated for the target image
+as a second, kernel-side belt; the allow-list enforcement that exists *today* is this proxy.
 
 ## 6. Sandbox execution profile (normative)
 
@@ -633,10 +681,11 @@ Every request that changed state, every denied request, and every approval write
 3. Clients MUST ignore unknown result fields and unknown `data` fields.
 4. Servers MUST ignore unknown params fields (except where documented as validated).
 5. `features[]` from `v1.node.hello` is the negotiation channel for optional behavior.
-6. This document is semantic-versioned: doc `1.4.0` ↔ `v1` wire (1.1.0 added the `host.*`
+6. This document is semantic-versioned: doc `1.5.0` ↔ `v1` wire (1.1.0 added the `host.*`
    methods and the oracle stage; 1.1.1 pinned Ed25519 signatures, the closed tier-1 preset list
    and the runtime rule-file watch; 1.2.0 implemented `snapshot.*`; 1.3.0 `app.*`; 1.4.0
-   implements `host.apply` with approver-signed jobs. No existing signature has ever changed.) Any doc change bumps the
+   implemented `host.apply` with approver-signed jobs; 1.5.0 adds `net.*` grants. No existing
+   signature has ever changed.) Any doc change bumps the
    patch and lands with a test in `tests/test_api_contract.py`.
 
 ---

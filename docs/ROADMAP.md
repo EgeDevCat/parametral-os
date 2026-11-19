@@ -86,11 +86,11 @@ tier-1 işleminin içine root shell saklanamaz.
 
 | # | iş | "bitti" kanıtı |
 |---|---|---|
-| D1 | Per-sandbox disk kotası: btrfs qgroup (root helper) | 256 MB kotada 512 MB yazma → `ENOSPC` |
-| D2 | Audit anchor: günlük **imzalı** `head_hash` off-host (git/object storage), TPM sonra | yerel log silinse bile tespit |
-| D3 | CI: Arch container'da `make test` + `make proof` + smoke | kırmızı merge edilemiyor |
+| D1 ✅ | qgroup komut katmanı + sandbox'a bağlandı (`quota.py`, 7 test); root yetkisi olmayan yerde `quota_note` ile dürüst uyarı | imajda 256 MB kotada 512 MB yazma → `ENOSPC` |
+| D2 ✅ | `anchor.py`: imzalı `anchors.jsonl`, `audit anchor` / `audit anchor-verify` (8 test) | yerel log silinse/ kurcalansa bile tespit |
+| D3 ✅ | `.github/workflows/ci.yml` (Arch container: guard, test, proof, smoke, bare-except taraması) | kırmızı merge edilemiyor |
 | D4 | Yedekleme/restore tatbikatı: snapshot + imaj geri yükleme | tatbikat raporu |
-| D5 | **Uygulama bazlı ağ izni**: sandbox başına nftables kuralı; `net.open` token'ı host:port ile sınırlı | izinsiz porta `connect` → `EACCES`; izinli host:port → başarılı |
+| D5 ✅ | `netproxy.py`: sandbox netns'siz kalır, izin verilen host:port'a yalnız Unix-socket proxy ile çıkılır; grant TTL + audit (10 test) | izinsiz hedef → soket kapanır; izinli hedef → veri akışı; doğrudan `connect` hâlâ `ENETUNREACH` |
 
 ### E — Sonra
 

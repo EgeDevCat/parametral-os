@@ -10,10 +10,12 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
 
+from . import quota as quota_mod
 from . import util
 
 GUARD_NAME = "seccomp_guard"
@@ -257,6 +259,12 @@ class SandboxManager:
                 util.atomic_write(os.path.join(base, "meta/etc/resolv.conf"),
                                   b"nameserver 10.0.2.3\n", mode=0o644)
 
+            net_dir = os.path.join(base, "net")
+            # AF_UNIX paths are limited to 108 bytes; fall back to a short, private
+            # per-sandbox dir when the state tree is nested deeply (tests, containers).
+            if len(os.path.join(net_dir, "net_0123456789-65535.sock")) > 100:
+                net_dir = os.path.join(tempfile.gettempdir(), f"parametral-net-{sid}")
+            os.makedirs(net_dir, mode=0o700, exist_ok=True)
             meta = {
                 "sandbox_id": sid,
                 "node_id": self.node_id,
@@ -272,7 +280,16 @@ class SandboxManager:
                 "execs": 0,
                 "root": os.path.join(base, "root"),
                 "home": os.path.join(base, "home"),
+                "net_dir": net_dir,
             }
+            note = None
+            if self.btrfs_available:
+                note = quota_mod.apply_best_effort(quota_mod.QuotaManager(),
+                                                   os.path.join(base, "root"),
+                                                   effective.disk_mb)
+            meta["quota_note"] = note
+            if note:
+                self.snapshot_notes.append(note)
             return self._save(meta)
 
     # --------------------------------------------------------------- destroy
@@ -284,6 +301,9 @@ class SandboxManager:
         self._cgroup_remove(sandbox_id)
         meta["state"] = "destroyed"
         meta["destroyed_at"] = util.iso()
+        net_dir = meta.get("net_dir")
+        if net_dir and not net_dir.startswith(base):
+            shutil.rmtree(net_dir, ignore_errors=True)
         if purge:
             self._remove_tree(base)
             return {"sandbox_id": sandbox_id, "state": "destroyed", "purged": True}
@@ -465,6 +485,11 @@ class SandboxManager:
             if os.path.exists(host_path):
                 argv += ["--ro-bind-try", host_path, host_path]
 
+        # approved destinations are reachable only through these Unix sockets
+        net_dir = meta.get("net_dir")
+        if net_dir and os.path.isdir(net_dir):
+            argv += ["--ro-bind", net_dir, "/run/net"]
+            env.setdefault("PARAMETRAL_NET_DIR", "/run/net")
         argv += argv_nix_prefix
         argv += ["--proc", "/proc", "--dev", "/dev",
                  "--size", str(64 * MI), "--tmpfs", "/tmp",

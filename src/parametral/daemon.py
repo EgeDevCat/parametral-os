@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import time
 import errno
 import json
 import os
@@ -18,7 +19,7 @@ import threading
 import time
 import traceback
 
-from . import appinstall, hostapply, sysapply, util
+from . import appinstall, hostapply, netproxy, sysapply, util
 from .approvals import ApprovalError, ApprovalStore, desktop_notifier
 from .audit import AuditLog
 from .harddeny import HardDenyClient, HardDenyUnavailable
@@ -128,6 +129,7 @@ class UltraOsDaemon:
             "pids": 128,
             "disk_mb": 256,
         })
+        self.net_grants = netproxy.GrantRegistry(on_event=self._net_event)
         self.job_queue = sysapply.JobQueue(
             os.environ.get("PARAMETRAL_JOB_SPOOL", os.path.join(util.runtime_dir(), "jobs")),
             os.environ.get("PARAMETRAL_JOB_RESULTS", os.path.join(util.runtime_dir(), "results")),
@@ -151,6 +153,9 @@ class UltraOsDaemon:
             "v1.sandbox.status": self._sandbox_status,
             "v1.sandbox.destroy": self._sandbox_destroy,
             "v1.exec.run": self._exec_run,
+            "v1.net.open": self._net_open,
+            "v1.net.close": self._net_close,
+            "v1.net.list": self._net_list,
             "v1.fs.read": self._fs_read,
             "v1.fs.write": self._fs_write,
             "v1.fs.edit": self._fs_edit,
@@ -177,6 +182,9 @@ class UltraOsDaemon:
             "v1.sandbox.list": "sandbox.list",
             "v1.sandbox.status": "sandbox.status",
             "v1.exec.run": "exec.run",
+            "v1.net.open": "net.open",
+            "v1.net.close": "net.close",
+            "v1.net.list": "net.list",
             "v1.fs.read": "fs.read",
             "v1.fs.write": "fs.write",
             "v1.fs.edit": "fs.write",
@@ -630,6 +638,55 @@ class UltraOsDaemon:
     def _sandbox_destroy(self, params: dict, _token) -> dict:
         sandbox_id = _require_id(params, "sandbox_id")
         return self.sandboxes.destroy(sandbox_id, purge=bool(params.get("purge", True)))
+
+    def _net_event(self, event: dict) -> None:
+        """Every proxy connection attempt lands in the audit log."""
+        self.audit.append(method="netproxy." + str(event.get("event")),
+                          actor="system:netproxy", params=event,
+                          sandbox_id=event.get("sandbox_id"),
+                          result="ok" if event.get("event") in ("connect", "grant_created")
+                          else "denied",
+                          detail=event, severity="info")
+
+    def _net_open(self, params: dict, _token) -> dict:
+        sandbox_id = _require_id(params, "sandbox_id")
+        meta = self.sandboxes.get(sandbox_id)
+        hosts = params.get("hosts")
+        ttl_s = params.get("ttl_s", 300)
+        try:
+            ttl_s = int(ttl_s)
+        except (TypeError, ValueError) as exc:
+            raise _invalid("ttl_s must be an integer", "ttl_s") from exc
+        try:
+            grant = self.net_grants.open(sandbox_id, meta["net_dir"], hosts, ttl_s)
+        except netproxy.NetGrantError as exc:
+            code = -32007 if exc.code == "LIMIT_EXCEEDED" else -32602
+            raise RpcError(code, str(exc), {"parametral_code": exc.code}) from exc
+        return {"grant_id": grant.grant_id, "sandbox_id": sandbox_id,
+                "hosts": [{"host": host, "port": port} for host, port in grant.hosts],
+                "socket_dir": "/run/net",
+                "sockets": [f"/run/net/{grant.grant_id}-{port}.sock"
+                            for _host, port in grant.hosts],
+                "expires_in_s": max(0, int(grant.expires_at - time.monotonic())),
+                "note": "the sandbox has no network stack; these Unix sockets are the only "
+                        "way out and they forward only to the approved destinations"}
+
+    def _net_close(self, params: dict, _token) -> dict:
+        grant_id = _require_id(params, "grant_id")
+        try:
+            self.net_grants.close(grant_id)
+        except netproxy.NetGrantError as exc:
+            raise RpcError(-32006, str(exc), {"parametral_code": exc.code}) from exc
+        return {"grant_id": grant_id, "closed": True}
+
+    def _net_list(self, params: dict, _token) -> dict:
+        sandbox_id = params.get("sandbox_id")
+        if sandbox_id:
+            _require_id(params, "sandbox_id")
+        grants = self.net_grants.list()
+        if sandbox_id:
+            grants = [grant for grant in grants if grant["sandbox_id"] == sandbox_id]
+        return {"grants": grants, "sweep_hint": "expired grants are closed automatically"}
 
     def _exec_run(self, params: dict, _token) -> dict:
         sandbox_id = _require_id(params, "sandbox_id")

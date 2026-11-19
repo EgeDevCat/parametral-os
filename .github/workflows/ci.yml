@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+      options: --privileged
+    steps:
+      - name: Install build and runtime dependencies
+        run: |
+          pacman -Syu --noconfirm --needed git python bubblewrap btrfs-progs \
+            gcc make jq util-linux libseccomp
+
+      - uses: actions/checkout@v4
+
+      - name: Build the seccomp guard
+        run: make guard
+
+      - name: Unit and integration tests
+        run: make test
+
+      - name: Isolation proof (bwrap must work in this runner)
+        run: make proof
+
+      - name: Two-process smoke test
+        run: bash scripts/smoke.sh
+
+      - name: No swallowed exceptions
+        run: |
+          if grep -rn "except:" src/ ; then
+            echo "bare except found"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proofs
+          path: proofs/

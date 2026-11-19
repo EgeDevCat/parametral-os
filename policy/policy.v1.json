@@ -305,6 +305,17 @@
       "max_ttl_s": 600
     },
     {
+      "id": "allow-net-grant-admin",
+      "description": "Listing and revoking network grants changes nothing on the host.",
+      "effect": "allow",
+      "priority": 100,
+      "operations": [
+        "net.list",
+        "net.close"
+      ],
+      "max_ttl_s": 300
+    },
+    {
       "id": "allow-network-with-approval",
       "description": "Opening the network is the single most dangerous capability: human gate, small TTL.",
       "effect": "allow",

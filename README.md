@@ -11,7 +11,7 @@
 <p><b>An Arch + Nix system an AI can operate — but never own.</b></p>
 
 <p>
-  <img alt="tests" src="https://img.shields.io/badge/tests-171%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-197%20passing-brightgreen">
   <img alt="api" src="https://img.shields.io/badge/api-v1.2-blue">
   <img alt="sandbox" src="https://img.shields.io/badge/sandbox-bwrap%20%2B%20seccomp%20%2B%20cgroup%20v2-informational">
   <img alt="platform" src="https://img.shields.io/badge/platform-Arch%20%2B%20Nix-1793d1">
@@ -72,11 +72,11 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 | `docs/API-v1.md` | the wire contract, frozen v1.2.0 — the AI codes against this |
 | `docs/ARCHITECTURE.md` | three layers, three tiers, trust boundaries, honest limitations |
 | `docs/ROADMAP.md` | three-actor plan v0.3: Arch base / AI / this layer / OS mind |
-| `src/parametral/` | gateway, policy, tokens, approvals, audit, sandbox, oracle, `appinstall`, `sysapply`, tier-1 validator |
+| `src/parametral/` | gateway, policy, tokens, approvals, audit, sandbox, oracle, `appinstall`, `sysapply`, `netproxy`, `anchor`, `quota` |
 | `src/parametral_guard.c` | in-sandbox seccomp + rlimit guard (compiled to `bin/seccomp_guard`) |
 | `policy/policy.v1.json` | allow/approval rules, default deny |
 | `policy/hard_deny.v1.json` + `.sig` + `.v1.pub` | tier-2 list, Ed25519-signed |
-| `tests/` | 171 unittest cases, no third-party deps |
+| `tests/` | 197 unittest cases, no third-party deps |
 | `install/` | Arch install kit: disk+LUKS, users, snapshots, boot, `70-verify.sh` evidence |
 | `src/tools/parametral-snapshot` | create / list / boot-entry / promote / prune rollback tool |
 | `assets/` | mark: delivered raster (transparent) for dark, flat vector for light |
@@ -87,7 +87,7 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 ```fish
 cd ~/Desktop/Development/ultra-si-os
 make guard                 # static seccomp guard
-make test                  # 171 tests, expect "OK"
+make test                  # 197 tests, expect "OK"
 make proof                 # writes proofs/isolation-proof.txt, expect "RESULT: PASS"
 bash scripts/smoke.sh      # two real processes, real sockets, expect "SMOKE OK"
 ```
@@ -140,7 +140,7 @@ Every response carries `node_id`-scoped results; errors carry stable `parametral
 | **A** | Arch base: btrfs (`@`/`@home`/`@var`/`@snapshots`), LUKS, both kernels, 4-user separation | install kit done (`install/`), ISO build pending |
 | **B** | Nix-first `app.install`: install → verify → ≤3 attempts → honest report; `home-manager` (tier 0) | `app.install` done (stubbed nix in tests); `host.nix_profile` pending |
 | **C** | Tier-1: approval → approver-signed job → `sysapply` (root) → snapshot → preset-only run | done and tested; enable as a unit on the image |
-| **D** | hardening: per-app network allowlist, btrfs qgroup quota, off-host audit anchor, CI | in progress |
+| **D** | hardening: per-app network allowlist, btrfs qgroup quota, off-host audit anchor, CI | implemented and tested; nftables belt + CI run land with the image |
 | **E** | later: microVM profile, multi-node, 80B cloud model (separate product) | reserved, no code |
 | **F** | OS mind: experience-store schema (F0), 10 small expert runtime (F1), expert training (F2) | runtime side is ours, training side is theirs |
 
@@ -178,6 +178,10 @@ live under `/var/lib/parametral` and `/etc/parametral`.
 5. Unprivileged `btrfs subvolume delete` needs `CAP_SYS_ADMIN`; replaced subvolumes are parked in
    `<state>/trash` and `snapshot.restore` reports `space_reclaim_needs_root`.
 6. Containers share the kernel: microVM profile is phase 5. No GPU/display/dbus passthrough yet.
+7. Network grants are enforced by the allow-listing Unix-socket proxy; the nftables belt for the
+   installed image is generated but not yet applied (needs CAP_NET_ADMIN). Disk quotas need
+   `btrfs qgroup` privileges on the target; without them the sandbox records
+   `quota_note` saying the limit is advisory instead of claiming it is on.
 
 ## Brand assets
 

@@ -18,7 +18,7 @@ OPERATIONS = frozenset({
     "exec.run",
     "fs.read", "fs.write", "fs.edit", "fs.delete", "fs.list",
     "app.install", "app.remove", "app.read",
-    "net.open", "service.start",
+    "net.open", "net.close", "net.list", "service.start",
     "host.apply", "host.nix_profile",
     "snapshot.create", "snapshot.restore", "snapshot.list",
     "audit.read", "approvals.read", "approvals.decide",
