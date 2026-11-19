@@ -12,7 +12,8 @@ pacstrap /mnt \
   btrfs-progs dosfstools e2fsprogs cryptsetup sudo efibootmgr \
   networkmanager openssh vim git less nix \
   python \
-  plasma-meta sddm konsole dolphin kate
+  plasma-meta sddm konsole dolphin kate \
+  qt5-base qt5-declarative qt5-quickcontrols2 qt5-graphicaleffects qt5-svg mesa
 
 echo "==> fstab"
 genfstab -U /mnt >> /mnt/etc/fstab

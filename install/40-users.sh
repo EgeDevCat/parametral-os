@@ -33,9 +33,14 @@ install -d -o parametral -g parametral -m 0750 /var/lib/parametral
 install -d -o approver -g approver -m 0700 /var/lib/parametral
 install -d -o root -g root -m 0700 /var/lib/parametral/keys
 
-echo "==> passwords (interactive: operator types theirs, service users get none)"
-passwd operator
-passwd ai
+if [ "$NONINTERACTIVE" = "1" ]; then
+  echo "==> passwords: TEST MODE (operator/ai = 'parametral', service users locked)"
+  printf 'operator:parametral\nai:parametral\n' | chpasswd
+else
+  echo "==> passwords (interactive: operator types theirs, service users get none)"
+  passwd operator
+  passwd ai
+fi
 usermod -L parametral
 usermod -L approver
 

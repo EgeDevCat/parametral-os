@@ -11,13 +11,13 @@ echo "=== 20 disk (no LUKS: test VM only)"
 bash "$SRC/install/20-disk.sh" "$DISK" --yes --no-luks
 echo "=== 30 bootstrap (both kernels, nix)"
 bash "$SRC/install/30-bootstrap.sh"
-echo "=== 40 users"
-bash "$SRC/install/40-users.sh" --non-interactive
-echo "=== 65 branding (splash + login)"
-bash "$SRC/install/65-branding.sh"
 echo "=== payload into the installed system"
 mkdir -p /mnt/opt
 cp -r "$SRC" /mnt/opt/parametral-src
+echo "=== 40 users (in chroot — must target the installed system, not the live ISO)"
+arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/40-users.sh --non-interactive'
+echo "=== 65 branding (splash + login)"
+bash "$SRC/install/65-branding.sh"
 echo "=== 50 snapshots (in chroot)"
 arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/50-snapshots.sh'
 echo "=== 60 boot (in chroot)"
