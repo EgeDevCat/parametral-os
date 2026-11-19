@@ -110,7 +110,7 @@ except OSError as exc:
 print("PROBE_JSON " + json.dumps(checks))
 '''
 
-REPORT_HEADER = """Ultra SI OS — sandbox isolation proof
+REPORT_HEADER = """Parametral OS — sandbox isolation proof
 generated: {generated}
 host: {host}   kernel: {kernel}
 bubblewrap: {bwrap_version}
@@ -133,7 +133,7 @@ def run_proof(state_dir: str | None = None, output_path: str | None = None,
               keep_sandbox: bool = False) -> tuple[bool, str, dict]:
     """Run the probe inside a real sandbox. Returns (passed, report_text, raw)."""
     here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    workdir = state_dir or tempfile.mkdtemp(prefix="ultraos-proof-",
+    workdir = state_dir or tempfile.mkdtemp(prefix="parametral-proof-",
                                             dir=os.environ.get("TMPDIR") or None)
     canary_dir = os.path.join(workdir, "host-canary")
     util.ensure_dir(canary_dir, 0o700)

@@ -1,4 +1,4 @@
-"""`ultraos` command line: operator/approver surface + smoke-test tooling.
+"""`parametral` command line: operator/approver surface + smoke-test tooling.
 
 The AI talks JSON-RPC (client.py). This CLI exists for the human side: approve
 or reject a request, verify the audit chain, inspect a sandbox, run the proof.
@@ -34,10 +34,10 @@ def _client(args) -> Client:
 
 
 def _token(args) -> str:
-    token = getattr(args, "token", None) or os.environ.get("ULTRAOS_TOKEN")
+    token = getattr(args, "token", None) or os.environ.get("PARAMETRAL_TOKEN")
     if not token:
-        raise SystemExit("this command needs --token or ULTRAOS_TOKEN "
-                         "(get one with `ultraos perm request ...`)")
+        raise SystemExit("this command needs --token or PARAMETRAL_TOKEN "
+                         "(get one with `parametral perm request ...`)")
     return token
 
 
@@ -129,7 +129,7 @@ def cmd_host(args) -> int:
         return 0
     if args.action == "sign":
         if not args.job_id:
-            raise SystemExit("host sign needs a job id (see `ultraos host pending`)")
+            raise SystemExit("host sign needs a job id (see `parametral host pending`)")
         _print({"signed": args.job_id, **queue.sign_pending(args.job_id, sk)})
         return 0
     if args.action == "result":
@@ -171,7 +171,7 @@ def cmd_sandbox_create(args) -> int:
               "disk_mb": args.disk}
     scope = {"sandbox_id": None}
     with _client(args) as client:
-        token = args.token or os.environ.get("ULTRAOS_TOKEN")
+        token = args.token or os.environ.get("PARAMETRAL_TOKEN")
         if not token or args.auto_permission:
             token = _auto_token(args, client, "sandbox.create", {}, "create sandbox")
         result = client.call("v1.sandbox.create", name=args.name, limits=limits,
@@ -195,7 +195,7 @@ def cmd_sandbox_status(args) -> int:
 
 def cmd_sandbox_destroy(args) -> int:
     with _client(args) as client:
-        token = args.token or os.environ.get("ULTRAOS_TOKEN")
+        token = args.token or os.environ.get("PARAMETRAL_TOKEN")
         if not token or args.auto_permission:
             token = _auto_token(args, client, "sandbox.destroy",
                                 {"sandbox_id": args.sandbox_id}, "destroy sandbox")
@@ -207,9 +207,9 @@ def cmd_sandbox_destroy(args) -> int:
 def cmd_exec(args) -> int:
     command = args.command[1:] if args.command and args.command[0] == "--" else args.command
     if not command:
-        raise SystemExit("exec needs a command: ultraos exec <sandbox> -- cmd ...")
+        raise SystemExit("exec needs a command: parametral exec <sandbox> -- cmd ...")
     with _client(args) as client:
-        token = args.token or os.environ.get("ULTRAOS_TOKEN")
+        token = args.token or os.environ.get("PARAMETRAL_TOKEN")
         if not token or args.auto_permission:
             token = _auto_token(args, client, "exec.run",
                                 {"sandbox_id": args.sandbox_id,
@@ -232,7 +232,7 @@ def cmd_exec(args) -> int:
 
 def cmd_fs(args) -> int:
     with _client(args) as client:
-        token = args.token or os.environ.get("ULTRAOS_TOKEN")
+        token = args.token or os.environ.get("PARAMETRAL_TOKEN")
         if not token or args.auto_permission:
             operation = "fs.read" if args.action in ("read", "ls") else "fs.write"
             token = _auto_token(args, client, operation,
@@ -299,7 +299,7 @@ def cmd_audit(args) -> int:
         if args.action == "verify":
             _print(client.call("v1.audit.verify"))
         else:
-            token = args.token or os.environ.get("ULTRAOS_TOKEN")
+            token = args.token or os.environ.get("PARAMETRAL_TOKEN")
             if not token or args.auto_permission:
                 token = _auto_token(args, client, "audit.read", {}, "read audit log")
             _print(client.call("v1.audit.query", from_seq=args.from_seq, limit=args.limit,
@@ -350,17 +350,17 @@ def cmd_doctor(args) -> int:
 # ----------------------------------------------------------------------- parser
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ultraos", description="Ultra SI OS control CLI")
+    parser = argparse.ArgumentParser(prog="parametral", description="Parametral OS control CLI")
     parser.add_argument("--socket", default=None, help="control socket path")
     parser.add_argument("--state", default=None, help="state directory")
     parser.add_argument("--node-id", default="local")
-    parser.add_argument("--version", action="version", version=f"ultraos {SERVER_VERSION}")
+    parser.add_argument("--version", action="version", version=f"parametral {SERVER_VERSION}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     serve = sub.add_parser("serve", help="run the daemon in the foreground")
     serve.add_argument("--policy", default=None)
     serve.add_argument("--harddeny-socket", default=None,
-                       help="tier-2 oracle socket (default: $XDG_RUNTIME_DIR/ultraos/harddeny.sock)")
+                       help="tier-2 oracle socket (default: $XDG_RUNTIME_DIR/parametral/harddeny.sock)")
     serve.add_argument("--harddeny-rules", default=None)
     serve.set_defaults(func=cmd_serve)
 

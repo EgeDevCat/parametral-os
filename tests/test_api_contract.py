@@ -1,6 +1,6 @@
 """The contract test: docs/API-v1.md and the daemon must not drift apart.
 
-This is what keeps the promise to the other half of the project (Ultra SI): the
+This is what keeps the promise to the other half of the project (Parametral): the
 document is the interface, so every method in the doc must exist and every
 implemented method must be documented.
 """
@@ -11,7 +11,7 @@ import unittest
 
 import support
 
-from ultraos.daemon import UltraOsDaemon
+from parametral.daemon import UltraOsDaemon
 
 DOC = support.REPO + "/docs/API-v1.md"
 METHOD_RE = re.compile(r"\bv1\.[a-z]+\.[a-z_]+(?:\.[a-z_]+)?\b")
@@ -58,7 +58,7 @@ class ApiContractTest(unittest.TestCase):
         self.assertIn("Additive only", self.doc)
 
     def test_operations_are_covered_by_policy_rules(self):
-        from ultraos.policy import OPERATIONS
+        from parametral.policy import OPERATIONS
 
         daemon = self.harness.daemon
         for method, operation in daemon.operation_of.items():
@@ -69,7 +69,7 @@ class ApiContractTest(unittest.TestCase):
     def test_no_swarm_code_in_v1(self):
         import os
 
-        src = os.path.join(support.REPO, "src", "ultraos")
+        src = os.path.join(support.REPO, "src", "parametral")
         for name in os.listdir(src):
             if not name.endswith(".py"):
                 continue

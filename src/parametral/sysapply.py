@@ -2,7 +2,7 @@
 
 Two processes, one signed hand-off:
 
-  gateway (ultraos)                     sysapply (root)
+  gateway (parametral)                     sysapply (root)
   ─────────────────                     ────────────────
   host.apply ──► pending job file  ──►  verify Ed25519 signature (approver pub)
                                         re-validate against the closed preset list
@@ -151,7 +151,7 @@ class JobRunner:
     """Executes signed jobs. This is the code that runs as root — keep it boring."""
 
     def __init__(self, spool_dir: str = DEFAULT_SPOOL, results_dir: str = DEFAULT_RESULTS,
-                 approver_pub_path: str = "/etc/ultraos/keys/approver.pub",
+                 approver_pub_path: str = "/etc/parametral/keys/approver.pub",
                  node_id: str = "local", snapshot_fn=None,
                  step_timeout_s: int = STEP_TIMEOUT_S, env: dict | None = None):
         self.queue = JobQueue(spool_dir, results_dir, node_id)
@@ -198,7 +198,7 @@ class JobRunner:
                 OSError, ValueError) as exc:
             code = getattr(exc, "code", "SIGNATURE_INVALID")
             return self._finish(job_id, {"job_id": job_id, "state": "rejected",
-                                        "error": str(exc), "ultraos_code": code,
+                                        "error": str(exc), "parametral_code": code,
                                         "steps": []})
 
         snapshot_id = None
@@ -209,7 +209,7 @@ class JobRunner:
                 return self._finish(job_id, {
                     "job_id": job_id, "state": "rejected",
                     "error": f"pre-change snapshot failed: {exc}", "steps": [],
-                    "ultraos_code": "SNAPSHOT_FAILED"})
+                    "parametral_code": "SNAPSHOT_FAILED"})
 
         step_results = []
         state = "applied"

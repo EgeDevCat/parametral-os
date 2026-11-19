@@ -18,14 +18,14 @@ import unittest
 
 import support
 
-from ultraos import harddeny as hd
-from ultraos.client import Client, ClientError
-from ultraos.daemon import UltraOsDaemon, UltraOsServer
+from parametral import harddeny as hd
+from parametral.client import Client, ClientError
+from parametral.daemon import UltraOsDaemon, UltraOsServer
 
 
 class EngineTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-hd-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-hd-")
         self.rules = os.path.join(self.tmp, "hard_deny.v1.json")
         self.key = os.path.join(self.tmp, "hard_deny.ed25519.sk")
         self.pub = os.path.join(self.tmp, "hard_deny.v1.pub")
@@ -61,7 +61,7 @@ class EngineTest(unittest.TestCase):
         self.assertEqual(verdict["rule_id"], "hd-sensitive-host-mounts")
 
     def test_instance_files_cannot_be_rewritten(self):
-        for path in ("/etc/ultraos/policy.v1.json", "/var/lib/ultraos/hard_deny.v1.json",
+        for path in ("/etc/parametral/policy.v1.json", "/var/lib/parametral/hard_deny.v1.json",
                      "/home/x/operator.key"):
             verdict = self.engine.check("fs.write", {"paths": [path]})
             self.assertEqual(verdict["decision"], "deny", path)
@@ -223,7 +223,7 @@ class OracleDownTest(unittest.TestCase):
     """Fail closed: no oracle means no state-changing operation, but status still works."""
 
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-hddown-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-hddown-")
         os.environ["XDG_RUNTIME_DIR"] = os.path.join(self.tmp, "run")
         socket_path = os.path.join(self.tmp, "control.sock")
         self.daemon = UltraOsDaemon(state_dir=os.path.join(self.tmp, "state"),
@@ -246,7 +246,7 @@ class OracleDownTest(unittest.TestCase):
             with self.assertRaises(ClientError) as raised:
                 client.call("v1.fs.list", sandbox_id="sbx_loc_000000000000", path="/work")
             self.assertEqual(raised.exception.code, -32013)
-            self.assertEqual(raised.exception.ultraos_code, "HARD_DENY_UNAVAILABLE")
+            self.assertEqual(raised.exception.parametral_code, "HARD_DENY_UNAVAILABLE")
 
     def test_diagnostics_still_answer_and_report_the_oracle_down(self):
         with Client(socket_path=self.socket_path) as client:
@@ -260,7 +260,7 @@ class PeerCredentialTest(unittest.TestCase):
     """SO_PEERCRED: only the gateway uid may query the oracle."""
 
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-peer-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-peer-")
         self.rules = os.path.join(self.tmp, "hard_deny.v1.json")
         self.sk = os.path.join(self.tmp, "k.sk")
         self.pub = os.path.join(self.tmp, "k.pub")
@@ -305,7 +305,7 @@ class RuntimeFileWatchTest(unittest.TestCase):
     """A rule file that changes while the oracle runs shuts the oracle down."""
 
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-watch-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-watch-")
         self.rules = os.path.join(self.tmp, "hard_deny.v1.json")
         self.sk = os.path.join(self.tmp, "k.sk")
         self.pub = os.path.join(self.tmp, "k.pub")

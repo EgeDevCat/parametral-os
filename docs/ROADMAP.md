@@ -1,7 +1,7 @@
 # Parametral OS — Roadmap v0.3 (birleştirilmiş)
 
 v0.2 (arkadaşının düzenlemesi) + v0.2'deki iki teknik hatanın düzeltmesi + F hattı + kararlar.
-Marka adı **Parametral OS**; `ultraosd`, `harddenyd`, `hard_deny.v1.json` gibi teknik adlar kod
+Marka adı **Parametral OS**; `parametrald`, `parametral-harddeny`, `hard_deny.v1.json` gibi teknik adlar kod
 adı olarak kalıyor (her yerde yeniden adlandırma churn'ü yok, marka sonra oturur).
 
 ## v0.3'te değişen (izlenebilirlik)
@@ -20,7 +20,7 @@ adı olarak kalıyor (her yerde yeniden adlandırma churn'ü yok, marka sonra ot
 
 | aktör | sahibi | dokunmaz |
 |---|---|---|
-| **Sen (OS)** | Arch imajı, btrfs düzeni, systemd unit'leri, `/etc/ultraos` sahipliği, kullanıcı ayrımı, KDE prototipi | AI kodu, policy içeriği |
+| **Sen (OS)** | Arch imajı, btrfs düzeni, systemd unit'leri, `/etc/parametral` sahipliği, kullanıcı ayrımı, KDE prototipi | AI kodu, policy içeriği |
 | **Arkadaş (AI)** | model, GC Shield (model içi), araç döngüsü, onay UX'i, deneyim deposuna yazım | kural dosyaları, anahtarlar, politika |
 | **Bu katman** | API v1.2, gateway, oracle, sandbox, snapshot, audit, tier-1 doğrulayıcı, F1 runtime | imaj build, model eğitimi |
 
@@ -53,9 +53,9 @@ adı olarak kalıyor (her yerde yeniden adlandırma churn'ü yok, marka sonra ot
 | # | iş | "bitti" kanıtı |
 |---|---|---|
 | A1 | Minimal Arch: btrfs kök, `@`/`@home`/`@var`, systemd-boot, **`linux` + `linux-lts` yedek**, LUKS açık → `install/` kiti hazır | ISO boot; `findmnt /` btrfs; snapshot al→geri dön; LUKS şifreli açılış |
-| A2 | Kullanıcılar (kit: `install/40-users.sh`): `operator` (wheel), `ultraos` (gateway+oracle), `ai` (hiçbir grupta değil), `approver`. `/etc/ultraos` root:root 0755; `keys/` **0700**; `*.pub` 0644, `*.sk` **0600** | `sudo -u ai cat /etc/ultraos/keys/hard_deny.ed25519.sk` → **Permission denied**; `.pub` okunur |
-| A3 | `harddenyd.service`, `ultraosd.service` (`User=ultraos`, `ProtectSystem=strict`, `ReadOnlyPaths=/etc/ultraos`, `NoNewPrivileges=yes`), **`nix-daemon.service`**; `/etc/nix/nix.conf`: `require-sigs = true`, `sandbox = true`, `trusted-users = root ultraos`, `allowed-users = @users` (`ai` trusted değil, kendi substituter'ını ekleyemez) | `ultraos status` → `available:true`; `ai` olarak `nix profile list` çalışır; `ai` `nix config` ile substituter değiştiremez |
-| A4 | İlk açılışta boş policy + imzalı `hard_deny.v1.json`; public key imajda, private key offline | `ultraos harddeny verify` → `verified:true` |
+| A2 | Kullanıcılar (kit: `install/40-users.sh`): `operator` (wheel), `parametral` (gateway+oracle), `ai` (hiçbir grupta değil), `approver`. `/etc/parametral` root:root 0755; `keys/` **0700**; `*.pub` 0644, `*.sk` **0600** | `sudo -u ai cat /etc/parametral/keys/hard_deny.ed25519.sk` → **Permission denied**; `.pub` okunur |
+| A3 | `parametral-harddeny.service`, `parametrald.service` (`User=parametral`, `ProtectSystem=strict`, `ReadOnlyPaths=/etc/parametral`, `NoNewPrivileges=yes`), **`nix-daemon.service`**; `/etc/nix/nix.conf`: `require-sigs = true`, `sandbox = true`, `trusted-users = root parametral`, `allowed-users = @users` (`ai` trusted değil, kendi substituter'ını ekleyemez) | `parametral status` → `available:true`; `ai` olarak `nix profile list` çalışır; `ai` `nix config` ile substituter değiştiremez |
+| A4 | İlk açılışta boş policy + imzalı `hard_deny.v1.json`; public key imajda, private key offline | `parametral harddeny verify` → `verified:true` |
 | A5 | İlk açılış **kapasite sondajı** (RAM/CPU/disk/TPM) → kurulum profili: tam / kısmi (F1 uzman sayısı ve sandbox limitleri buna göre) | düşük RAM'li VM'de kısmi profil; rapor `/var/log/parametral/firstboot.json` |
 | A6 | AUR yasağı (`makepkg`, AUR yardımcıları tier-2) ve kısmi pacman yasağı (`pacman -U`, `--overwrite` preset dışı) | `paru -S x` ve `pacman -U x.pkg` → `POLICY_DENIED` |
 
@@ -75,7 +75,7 @@ adı olarak kalıyor (her yerde yeniden adlandırma churn'ü yok, marka sonra ot
 | # | iş | "bitti" kanıtı |
 |---|---|---|
 | C1 ✅ | `sysapply` (root): approver imzalı iş dosyası, `hostapply.PRESETS`, önce snapshot. Kod + 10 test (stub pacman). Servis unit'i `install/systemd/` altına eklenecek | `tests/test_sysapply.py`: imzalı iş uygulandı; kurcalanan yük/yanlış anahtar/`sh -c`/snapshot hatası reddedildi |
-| C2 | `approver` ayrı uid, Ed25519 anahtar 0600; onay + iş imzalama (`ultraos host sign`) | `ai` onay anahtarını okuyamıyor; onaysız tier-1 yok |
+| C2 | `approver` ayrı uid, Ed25519 anahtar 0600; onay + iş imzalama (`parametral host sign`) | `ai` onay anahtarını okuyamıyor; onaysız tier-1 yok |
 | C3 | Geri alma: `snapshot.restore` ile `@` snapshot'ı | paket eski haline döndü |
 | C4 | Kısmi pacman yasağı preset'te kilitli: `-U`, `--overwrite` yok | test: `pacman -U` → red |
 

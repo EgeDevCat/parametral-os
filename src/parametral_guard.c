@@ -176,9 +176,9 @@ main (int argc, char **argv)
     }
 
   /* Limits first: they must be in force before the target runs. */
-  if (apply_rlimit (RLIMIT_AS, "ULTRAOS_RLIMIT_AS_BYTES") != 0 ||
-      apply_rlimit (RLIMIT_CPU, "ULTRAOS_RLIMIT_CPU_SECONDS") != 0 ||
-      apply_rlimit (RLIMIT_FSIZE, "ULTRAOS_RLIMIT_FSIZE_BYTES") != 0)
+  if (apply_rlimit (RLIMIT_AS, "PARAMETRAL_RLIMIT_AS_BYTES") != 0 ||
+      apply_rlimit (RLIMIT_CPU, "PARAMETRAL_RLIMIT_CPU_SECONDS") != 0 ||
+      apply_rlimit (RLIMIT_FSIZE, "PARAMETRAL_RLIMIT_FSIZE_BYTES") != 0)
     return 126;
 
   struct rlimit no_core = { 0, 0 };

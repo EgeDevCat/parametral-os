@@ -56,7 +56,7 @@ sys.exit(2)
 
 class SnapshotToolTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-snap-tool-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-snap-tool-")
         self.root = os.path.join(self.tmp, "tree")
         self.snap_dir = os.path.join(self.tmp, "snapshots")
         self.boot_dir = os.path.join(self.tmp, "boot")

@@ -52,7 +52,7 @@
       "id": "hd-policy-tamper",
       "reason": "the deny list, policy and signing keys are operator-owned files",
       "operations": ["fs.write", "fs.edit", "fs.delete"],
-      "paths": ["/etc/ultraos/**", "/var/lib/ultraos/**", "**/policy.v1.json",
+      "paths": ["/etc/parametral/**", "/var/lib/parametral/**", "**/policy.v1.json",
                 "**/hard_deny.v1.json", "**/hard_deny.v1.json.sig", "**/operator.key"]
     }
   ]

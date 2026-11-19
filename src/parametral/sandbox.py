@@ -247,7 +247,7 @@ class SandboxManager:
 
             uid, gid = os.getuid(), os.getgid()
             util.atomic_write(os.path.join(base, "meta/etc/passwd"),
-                              f"user:x:{uid}:{gid}:Ultra SI sandbox:/home/user:/bin/sh\nroot:x:0:0:root:/root:/bin/sh\n".encode(),
+                              f"user:x:{uid}:{gid}:Parametral sandbox:/home/user:/bin/sh\nroot:x:0:0:root:/root:/bin/sh\n".encode(),
                               mode=0o644)
             util.atomic_write(os.path.join(base, "meta/etc/group"),
                               f"user:x:{gid}:\nroot:x:0:\n".encode(), mode=0o644)
@@ -425,7 +425,7 @@ class SandboxManager:
         }
         forbidden = {"PATH", "HOME", "LD_PRELOAD", "LD_LIBRARY_PATH", "TMPDIR"}
         for key, value in meta.get("env", {}).items():
-            if key in forbidden or key.startswith("ULTRAOS_") or not re.fullmatch(r"[A-Z_][A-Z0-9_]*", key):
+            if key in forbidden or key.startswith("PARAMETRAL_") or not re.fullmatch(r"[A-Z_][A-Z0-9_]*", key):
                 continue
             env[key] = value
         return env
@@ -479,14 +479,14 @@ class SandboxManager:
             flag = "--ro-bind" if mount.get("mode", "ro") != "rw" else "--bind"
             argv += [flag, host_path, sandbox_path]
 
-        argv += ["--ro-bind", os.path.abspath(self.guard_path), "/run/ultraos/guard"]
+        argv += ["--ro-bind", os.path.abspath(self.guard_path), "/run/parametral/guard"]
         argv += ["--chdir", cwd, "--clearenv"]
         for key, value in env.items():
             argv += ["--setenv", key, value]
-        argv += ["--setenv", "ULTRAOS_RLIMIT_AS_BYTES", str(rlimits["as"])]
-        argv += ["--setenv", "ULTRAOS_RLIMIT_CPU_SECONDS", str(rlimits["cpu"])]
-        argv += ["--setenv", "ULTRAOS_RLIMIT_FSIZE_BYTES", str(rlimits["fsize"])]
-        argv += ["--", "/run/ultraos/guard", *cmd]
+        argv += ["--setenv", "PARAMETRAL_RLIMIT_AS_BYTES", str(rlimits["as"])]
+        argv += ["--setenv", "PARAMETRAL_RLIMIT_CPU_SECONDS", str(rlimits["cpu"])]
+        argv += ["--setenv", "PARAMETRAL_RLIMIT_FSIZE_BYTES", str(rlimits["fsize"])]
+        argv += ["--", "/run/parametral/guard", *cmd]
         return argv
 
     def run(self, sandbox_id: str, cmd: list[str], *, cwd: str = "/work",
@@ -670,7 +670,7 @@ class SandboxManager:
         root = self._cgroup_root()
         if root is None:
             return None, "no delegated cgroup ancestor with controllers (using rlimits only)"
-        path = os.path.join(root, f"ultraos-{meta['sandbox_id']}")
+        path = os.path.join(root, f"parametral-{meta['sandbox_id']}")
         limits = Limits.from_dict(meta["limits"])
         try:
             os.makedirs(path, mode=0o755, exist_ok=True)
@@ -694,7 +694,7 @@ class SandboxManager:
         root = self._cgroup_root()
         if root is None:
             return None
-        path = os.path.join(root, f"ultraos-{sandbox_id}")
+        path = os.path.join(root, f"parametral-{sandbox_id}")
         return path if os.path.isdir(path) else None
 
     def _cgroup_kill(self, sandbox_id: str) -> None:

@@ -5,7 +5,7 @@ import unittest
 
 import support  # noqa: F401
 
-from ultraos import hostapply
+from parametral import hostapply
 
 
 def request(*steps, snapshot=True, approval="apr_0123456789ab", intent="install ripgrep"):

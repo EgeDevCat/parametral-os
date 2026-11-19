@@ -15,8 +15,8 @@ import unittest
 
 import support
 
-from ultraos import ed25519, hostapply, sysapply
-from ultraos.client import ClientError
+from parametral import ed25519, hostapply, sysapply
+from parametral.client import ClientError
 
 FAKE_PACMAN = """#!/bin/sh
 echo "pacman $*" >> "$FAKE_LOG"
@@ -26,7 +26,7 @@ exit "${FAKE_EXIT:-0}"
 
 class RunnerTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-sysapply-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-sysapply-")
         self.spool = os.path.join(self.tmp, "jobs")
         self.results = os.path.join(self.tmp, "results")
         self.bin = os.path.join(self.tmp, "bin")
@@ -101,7 +101,7 @@ class RunnerTest(unittest.TestCase):
         json.dump(tampered, open(job_path, "w"))
         result = self.runner.run_once()[0]
         self.assertEqual(result["state"], "rejected")
-        self.assertEqual(result["ultraos_code"], "SIGNATURE_INVALID")
+        self.assertEqual(result["parametral_code"], "SIGNATURE_INVALID")
         self.assertEqual(open(self.log).read(), "", "nothing may run")
 
     def test_signature_from_another_key_is_rejected(self):
@@ -135,7 +135,7 @@ class RunnerTest(unittest.TestCase):
         self.queue.sign_pending(payload["job_id"], self.approver_sk)
         result = runner.run_once()[0]
         self.assertEqual(result["state"], "rejected")
-        self.assertEqual(result["ultraos_code"], "SNAPSHOT_FAILED")
+        self.assertEqual(result["parametral_code"], "SNAPSHOT_FAILED")
         self.assertEqual(open(self.log).read(), "", "no snapshot, no change")
 
     def test_failed_step_is_reported_with_stderr(self):
@@ -183,7 +183,7 @@ class DaemonHostApplyTest(unittest.TestCase):
     def setUp(self):
         self.client = self.harness.client()
         self.sandbox = support.make_sandbox(self.harness, name="tier1")
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-tier1-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-tier1-")
         self.bin = os.path.join(self.tmp, "bin")
         os.makedirs(self.bin)
         self.log = os.path.join(self.tmp, "pacman.log")

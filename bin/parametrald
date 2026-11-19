@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Ultra SI OS tier-2 hard-deny oracle (deterministic, signed rules)."""
+"""Parametral OS daemon entry point (same binary as `parametral serve`)."""
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-from ultraos.cli import main
+from parametral.cli import main
 
 if __name__ == "__main__":
-    raise SystemExit(main(["harddeny", "serve"] + sys.argv[1:]))
+    raise SystemExit(main(["serve"] + sys.argv[1:]))

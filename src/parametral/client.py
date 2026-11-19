@@ -21,8 +21,8 @@ class ClientError(RuntimeError):
         self.data = data or {}
 
     @property
-    def ultraos_code(self) -> str:
-        return self.data.get("ultraos_code", "UNKNOWN")
+    def parametral_code(self) -> str:
+        return self.data.get("parametral_code", "UNKNOWN")
 
 
 class Client:
@@ -79,7 +79,7 @@ class Client:
 
     # ------------------------------------------------------------ shortcuts
 
-    def hello(self, client_version: str = "ultraos-client/0.1.0") -> dict:
+    def hello(self, client_version: str = "parametral-client/0.1.0") -> dict:
         return self.call("v1.node.hello", client_version=client_version,
                          protocol_versions=[PROTOCOL_VERSION])
 

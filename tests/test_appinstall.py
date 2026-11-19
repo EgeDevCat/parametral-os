@@ -15,9 +15,9 @@ import unittest
 
 import support
 
-from ultraos.appinstall import Installer, ManifestError
-from ultraos.client import ClientError
-from ultraos.sandbox import SandboxManager
+from parametral.appinstall import Installer, ManifestError
+from parametral.client import ClientError
+from parametral.sandbox import SandboxManager
 
 STUB = r"""#!/bin/sh
 echo "$@" >> /work/nix-calls.log
@@ -68,7 +68,7 @@ MANIFEST = {
 
 class InstallerTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-app-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-app-")
         self.manager = SandboxManager(self.tmp, defaults={"memory_mb": 256})
         self.meta = self.manager.create(name="app")
         self.sid = self.meta["sandbox_id"]
@@ -231,7 +231,7 @@ class DaemonAppInstallTest(unittest.TestCase):
         self.client.close()
 
     def _approved_token(self, operation: str) -> str:
-        from ultraos.approvals import ApprovalStore
+        from parametral.approvals import ApprovalStore
 
         with self.assertRaises(ClientError) as raised:
             self.client.request_permission(operation, {"sandbox_id": self.sid}, "install greet")

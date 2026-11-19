@@ -29,12 +29,12 @@ echo
 echo "2) user separation"
 check "ai has no supplementary groups" "[ \"\$(id -nG ai | tr ' ' '\\n' | grep -vc '^ai$')\" -eq 0 ]"
 check "ai cannot sudo"                 "sudo -l -U ai 2>&1 | grep -qi 'not allowed'"
-check "ai cannot read the keys dir"    "! runuser -u ai -- test -r /etc/ultraos/keys"
-check "ai cannot read /etc/ultraos/keys/*.sk" "! runuser -u ai -- sh -c 'cat /etc/ultraos/keys/*.sk' 2>/dev/null"
+check "ai cannot read the keys dir"    "! runuser -u ai -- test -r /etc/parametral/keys"
+check "ai cannot read /etc/parametral/keys/*.sk" "! runuser -u ai -- sh -c 'cat /etc/parametral/keys/*.sk' 2>/dev/null"
 check "ai home is 0700"                "[ \"\$(stat -c %a /home/ai)\" = \"700\" ]"
 check "polkit denies ai"               "grep -q 'subject.user === \"ai\"' /etc/polkit-1/rules.d/50-parametral-ai.rules"
 check "approver key is 0700 root"      "[ \"\$(stat -c %a /var/lib/parametral/keys)\" = \"700\" ]"
-check "ultraos has no shell"           "grep -q '/usr/bin/nologin' <(getent passwd ultraos)"
+check "parametral has no shell"           "grep -q '/usr/bin/nologin' <(getent passwd parametral)"
 
 echo
 echo "3) backup kernel"

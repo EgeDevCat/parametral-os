@@ -39,7 +39,7 @@ bash install/30-bootstrap.sh
 
 `base base-devel linux linux-lts linux-firmware btrfs-progs cryptsetup sudo networkmanager
 nix …` + `genfstab` + `locale` + `mkinitcpio -P` (iki çekirdek için de initramfs) + `nix.conf`
-(`sandbox = true`, `require-sigs = true`, `trusted-users = root ultraos`) + `nix-daemon` açık.
+(`sandbox = true`, `require-sigs = true`, `trusted-users = root parametral`) + `nix-daemon` açık.
 LUKS varsa HOOKS'a `encrypt`, `/etc/crypttab` yazılır.
 
 ## 4. Kullanıcılar (ayrım)
@@ -51,11 +51,11 @@ bash install/40-users.sh
 | kullanıcı | ne yapar | yetki |
 |---|---|---|
 | `operator` | sen | wheel + sudo |
-| `ultraos` | gateway + oracle servisleri | kabuk yok (`nologin`), sudo yok |
+| `parametral` | gateway + oracle servisleri | kabuk yok (`nologin`), sudo yok |
 | `approver` | onay UI, onay anahtarı | sudo yok, anahtar `0700` |
-| `ai` | AI süreci | hiçbir grup yok, sudo yok, ev `0700`, `/etc/ultraos/keys` okuyamaz |
+| `ai` | AI süreci | hiçbir grup yok, sudo yok, ev `0700`, `/etc/parametral/keys` okuyamaz |
 
-`sudoers.d/10-parametral`: `ai`, `ultraos`, `approver` için açıkça `!ALL` (sudo denemesi
+`sudoers.d/10-parametral`: `ai`, `parametral`, `approver` için açıkça `!ALL` (sudo denemesi
 kayda geçer). Polkit kuralı `ai` için her ayrıcalıklı eylemi reddeder.
 
 ## 5. Snapshot sistemi
@@ -109,12 +109,12 @@ pacman -S plasma-meta sddm     # prototip arayüzü (KDE)
 systemctl enable sddm
 systemctl enable --now systemd-timesyncd
 # parametral katmanı (repo'dan)
-install -Dm0755 bin/ultraosd /usr/local/bin/ultraosd
-install -Dm0755 bin/harddenyd /usr/local/bin/harddenyd
+install -Dm0755 bin/parametrald /usr/local/bin/parametrald
+install -Dm0755 bin/parametral-harddeny /usr/local/bin/parametral-harddeny
 ```
 
-Servis dosyaları `install/systemd/` altında: `ultraosd.service`, `harddenyd.service`
-(`User=ultraos`, `ProtectSystem=strict`, `NoNewPrivileges=yes`, `ReadOnlyPaths=/etc/ultraos`).
+Servis dosyaları `install/systemd/` altında: `parametrald.service`, `parametral-harddeny.service`
+(`User=parametral`, `ProtectSystem=strict`, `NoNewPrivileges=yes`, `ReadOnlyPaths=/etc/parametral`).
 
 ## Bilinen sınırlar
 

@@ -9,12 +9,12 @@ import unittest
 
 import support  # noqa: F401
 
-from ultraos.audit import AuditLog, GENESIS
+from parametral.audit import AuditLog, GENESIS
 
 
 class AuditTest(unittest.TestCase):
     def setUp(self):
-        self.dir = tempfile.mkdtemp(prefix="ultraos-audit-")
+        self.dir = tempfile.mkdtemp(prefix="parametral-audit-")
         self.log = AuditLog(self.dir, node_id="local")
 
     def tearDown(self):

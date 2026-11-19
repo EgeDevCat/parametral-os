@@ -1,4 +1,4 @@
-"""ultraosd — JSON-RPC 2.0 control plane over a Unix socket.
+"""parametrald — JSON-RPC 2.0 control plane over a Unix socket.
 
 Every request passes through: node check → policy → capability token → handler →
 audit. Nothing executes before the token is validated, and nothing is executed
@@ -56,23 +56,23 @@ ORACLE_EXEMPT = {"v1.node.hello", "v1.node.status", "v1.policy.explain", "v1.aud
 
 
 def _invalid(message: str, field: str | None = None, **extra) -> RpcError:
-    data = {"ultraos_code": "INVALID_PARAMS", **(extra or {})}
+    data = {"parametral_code": "INVALID_PARAMS", **(extra or {})}
     if field:
         data["field"] = field
     return RpcError(-32602, message, data)
 
 
 def _not_found(message: str) -> RpcError:
-    return RpcError(-32006, message, {"ultraos_code": "NOT_FOUND"})
+    return RpcError(-32006, message, {"parametral_code": "NOT_FOUND"})
 
 
 def _limit(message: str, **extra) -> RpcError:
-    return RpcError(-32007, message, {"ultraos_code": "LIMIT_EXCEEDED", **extra})
+    return RpcError(-32007, message, {"parametral_code": "LIMIT_EXCEEDED", **extra})
 
 
 def _unsupported(message: str, milestone: str) -> RpcError:
     return RpcError(CODE_UNSUPPORTED, message,
-                    {"ultraos_code": "UNSUPPORTED", "milestone": milestone})
+                    {"parametral_code": "UNSUPPORTED", "milestone": milestone})
 
 
 def _require(params: dict, field: str, kind=str, max_len: int | None = None):
@@ -129,12 +129,12 @@ class UltraOsDaemon:
             "disk_mb": 256,
         })
         self.job_queue = sysapply.JobQueue(
-            os.environ.get("ULTRAOS_JOB_SPOOL", os.path.join(util.runtime_dir(), "jobs")),
-            os.environ.get("ULTRAOS_JOB_RESULTS", os.path.join(util.runtime_dir(), "results")),
+            os.environ.get("PARAMETRAL_JOB_SPOOL", os.path.join(util.runtime_dir(), "jobs")),
+            os.environ.get("PARAMETRAL_JOB_RESULTS", os.path.join(util.runtime_dir(), "results")),
             node_id)
         self.installer = appinstall.Installer(
             self.sandboxes,
-            nix_bin=os.environ.get("ULTRAOS_NIX_BIN", "nix"),
+            nix_bin=os.environ.get("PARAMETRAL_NIX_BIN", "nix"),
             state_root=self.state_dir)
         self._idempotency: dict[str, tuple[float, dict]] = {}
         self._idem_lock = threading.Lock()
@@ -240,24 +240,24 @@ class UltraOsDaemon:
 
         if request.get("jsonrpc") != "2.0" or not isinstance(method, str):
             return self._error_response(request_id, RpcError(-32600, "invalid JSON-RPC request",
-                                                             {"ultraos_code": "INVALID_REQUEST"}))
+                                                             {"parametral_code": "INVALID_REQUEST"}))
         if not isinstance(params, dict):
             return self._error_response(request_id, RpcError(-32600, "params must be an object",
-                                                             {"ultraos_code": "INVALID_REQUEST",
+                                                             {"parametral_code": "INVALID_REQUEST",
                                                               "field": "params"}))
         if method not in self.handlers:
             return self._error_response(request_id, RpcError(-32601, f"unknown method {method}",
-                                                             {"ultraos_code": "METHOD_NOT_FOUND"}))
+                                                             {"parametral_code": "METHOD_NOT_FOUND"}))
 
         node_id = params.get("node_id")
         if node_id is None:
             return self._error_response(request_id, RpcError(
-                -32600, "params.node_id is mandatory", {"ultraos_code": "INVALID_REQUEST",
+                -32600, "params.node_id is mandatory", {"parametral_code": "INVALID_REQUEST",
                                                         "field": "node_id"}))
         if node_id != self.node_id:
             return self._error_response(request_id, RpcError(
                 -32011, f"this node is {self.node_id!r}, request addressed {node_id!r}",
-                {"ultraos_code": "NODE_MISMATCH"}))
+                {"parametral_code": "NODE_MISMATCH"}))
 
         operation = self.operation_of.get(method)
         oracle_operation = operation
@@ -277,18 +277,18 @@ class UltraOsDaemon:
                     self.audit.append(method=method, actor="anonymous", params=params,
                                       result="denied", severity="critical",
                                       detail={"reason": str(exc),
-                                              "ultraos_code": "HARD_DENY_UNAVAILABLE"})
+                                              "parametral_code": "HARD_DENY_UNAVAILABLE"})
                     raise RpcError(-32013, "hard-deny oracle is unavailable; refusing "
                                            "the operation (fail closed)",
-                                   {"ultraos_code": "HARD_DENY_UNAVAILABLE",
+                                   {"parametral_code": "HARD_DENY_UNAVAILABLE",
                                     "socket": self.harddeny_socket}) from exc
                 if verdict.get("decision") != "allow":
                     self.audit.append(method=method, actor="anonymous", params=params,
                                       result="denied", severity="critical",
                                       detail={"hard_deny": verdict,
-                                              "ultraos_code": "POLICY_DENIED"})
+                                              "parametral_code": "POLICY_DENIED"})
                     raise RpcError(-32001, "operation is on the hard deny list", {
-                        "ultraos_code": "POLICY_DENIED", "hard_deny": True,
+                        "parametral_code": "POLICY_DENIED", "hard_deny": True,
                         "rule_id": verdict.get("rule_id"),
                         "reason": verdict.get("reason"),
                         "approval_possible": False,
@@ -302,7 +302,7 @@ class UltraOsDaemon:
                                       detail={"rule_id": decision.rule_id,
                                               "reason": decision.reason})
                     raise RpcError(-32001, "policy denied the operation", {
-                        "ultraos_code": "POLICY_DENIED", "rule_id": decision.rule_id,
+                        "parametral_code": "POLICY_DENIED", "rule_id": decision.rule_id,
                         "operation": operation, "reason": decision.reason,
                         "hint": "request a capability token via v1.permission.request"})
 
@@ -313,7 +313,7 @@ class UltraOsDaemon:
                                           result="denied", severity="warning",
                                           detail={"reason": "missing capability token"})
                         raise RpcError(-32002, "operation needs a capability token", {
-                            "ultraos_code": "TOKEN_REQUIRED", "operation": operation,
+                            "parametral_code": "TOKEN_REQUIRED", "operation": operation,
                             "hint": f"v1.permission.request for {operation}"})
                     try:
                         token_payload = self.tokens.verify(
@@ -322,7 +322,7 @@ class UltraOsDaemon:
                         self.audit.append(method=method, actor="anonymous", params=params,
                                           result="denied", severity="warning",
                                           detail={"reason": str(exc)})
-                        raise RpcError(-32003, str(exc), {"ultraos_code": "TOKEN_INVALID",
+                        raise RpcError(-32003, str(exc), {"parametral_code": "TOKEN_INVALID",
                                                           "operation": operation}) from exc
 
             idem_key = params.get("idempotency_key")
@@ -363,22 +363,22 @@ class UltraOsDaemon:
                 "PEER_REJECTED": (-32010, "PEER_REJECTED"),
                 "TOKEN_INVALID": (-32003, "TOKEN_INVALID"),
             }
-            code, ultraos_code = code_map.get(getattr(exc, "code", ""), (-32603, "INTERNAL"))
+            code, parametral_code = code_map.get(getattr(exc, "code", ""), (-32603, "INTERNAL"))
             severity = "security" if (getattr(exc, "detail", None) or {}).get("severity") == "security" else "warning"
             self.audit.append(method=method, actor=self._actor(token_payload), params=params,
                               result="error", severity=severity,
                               token_id=self._tid(token_payload),
                               sandbox_id=params.get("sandbox_id"),
-                              detail={"message": str(exc), "ultraos_code": ultraos_code,
+                              detail={"message": str(exc), "parametral_code": parametral_code,
                                       "detail": getattr(exc, "detail", None)})
             return self._error_response(request_id, RpcError(
-                code, str(exc), {"ultraos_code": ultraos_code,
+                code, str(exc), {"parametral_code": parametral_code,
                                  **(getattr(exc, "detail", None) or {})}))
         except PolicyError as exc:
             self.audit.append(method=method, actor=self._actor(token_payload), params=params,
                               result="error", detail={"message": str(exc)})
             return self._error_response(request_id, RpcError(
-                -32603, f"policy error: {exc}", {"ultraos_code": "INTERNAL"}))
+                -32603, f"policy error: {exc}", {"parametral_code": "INTERNAL"}))
         except Exception as exc:  # never swallow: surface + audit
             detail = traceback.format_exc(limit=8)
             self.audit.append(method=method, actor=self._actor(token_payload), params=params,
@@ -386,7 +386,7 @@ class UltraOsDaemon:
                               detail={"message": f"{type(exc).__name__}: {exc}",
                                       "traceback": detail})
             return self._error_response(request_id, RpcError(
-                -32603, f"{type(exc).__name__}: {exc}", {"ultraos_code": "INTERNAL"}))
+                -32603, f"{type(exc).__name__}: {exc}", {"parametral_code": "INTERNAL"}))
 
     # ------------------------------------------------------------ idempotency
 
@@ -514,7 +514,7 @@ class UltraOsDaemon:
         denied = [item for item in decisions if not item.allowed]
         if denied:
             raise RpcError(-32001, "policy denied the requested capability", {
-                "ultraos_code": "POLICY_DENIED", "rule_id": denied[0].rule_id,
+                "parametral_code": "POLICY_DENIED", "rule_id": denied[0].rule_id,
                 "operation": operation, "reason": denied[0].reason})
 
         requires_approval = any(item.requires_approval for item in decisions)
@@ -530,10 +530,10 @@ class UltraOsDaemon:
                                                  justification=justification,
                                                  requested_by=requested_by)
                 raise RpcError(-32004, "operation needs human approval", {
-                    "ultraos_code": "APPROVAL_REQUIRED",
+                    "parametral_code": "APPROVAL_REQUIRED",
                     "approval_id": approval["approval_id"],
                     "operation": operation, "expires_at": approval["expires_at"],
-                    "how": f"ultraos approvals approve {approval['approval_id']}"})
+                    "how": f"parametral approvals approve {approval['approval_id']}"})
         else:
             approval = None
 
@@ -585,7 +585,7 @@ class UltraOsDaemon:
         proof = params.get("approver_proof")
         if not isinstance(proof, str) or not proof:
             raise RpcError(-32010, "approver_proof is required for approval decisions", {
-                "ultraos_code": "PEER_REJECTED"})
+                "parametral_code": "PEER_REJECTED"})
         approval = self.approvals.decide(approval_id, decision,
                                          decided_by=str(params.get("decided_by") or "user:local"),
                                          proof=proof,
@@ -721,7 +721,7 @@ class UltraOsDaemon:
         expected = int(params.get("count", 1))
         if occurrences != expected:
             raise RpcError(-32012, f"ambiguous match: {occurrences} occurrences, expected {expected}",
-                           {"ultraos_code": "CONFLICT", "occurrences": occurrences})
+                           {"parametral_code": "CONFLICT", "occurrences": occurrences})
         updated = text.replace(old, new, expected)
         util.atomic_write(host, updated.encode("utf-8"), mode=0o640)
         return {"path": params["path"], "replacements": expected,
@@ -771,7 +771,7 @@ class UltraOsDaemon:
         if os.path.isdir(host):
             if not params.get("recursive", False) and os.listdir(host):
                 raise RpcError(-32012, "directory not empty (pass recursive=true)",
-                               {"ultraos_code": "CONFLICT"})
+                               {"parametral_code": "CONFLICT"})
             shutil.rmtree(host)
         else:
             os.unlink(host)
@@ -816,7 +816,7 @@ class UltraOsDaemon:
             code = -32602
             if exc.code == "UNSUPPORTED":
                 code = CODE_UNSUPPORTED
-            raise RpcError(code, str(exc), {"ultraos_code": exc.code, **exc.detail}) from exc
+            raise RpcError(code, str(exc), {"parametral_code": exc.code, **exc.detail}) from exc
         return record
 
     def _app_remove(self, params: dict, _token) -> dict:
@@ -825,7 +825,7 @@ class UltraOsDaemon:
         try:
             return self.installer.remove(sandbox_id, manifest)
         except appinstall.ManifestError as exc:
-            raise RpcError(-32602, str(exc), {"ultraos_code": exc.code, **exc.detail}) from exc
+            raise RpcError(-32602, str(exc), {"parametral_code": exc.code, **exc.detail}) from exc
 
     def _app_verify(self, params: dict, _token) -> dict:
         sandbox_id = _require_id(params, "sandbox_id")
@@ -833,7 +833,7 @@ class UltraOsDaemon:
         try:
             return self.installer.verify(sandbox_id, manifest)
         except appinstall.ManifestError as exc:
-            raise RpcError(-32602, str(exc), {"ultraos_code": exc.code, **exc.detail}) from exc
+            raise RpcError(-32602, str(exc), {"parametral_code": exc.code, **exc.detail}) from exc
 
     def _host_apply(self, params: dict, _token) -> dict:
         """Tier-1: queue a signed job for sysapply.
@@ -847,22 +847,22 @@ class UltraOsDaemon:
             result = self.job_queue.result(job_id)
             if result is None:
                 raise RpcError(-32005, "job is still waiting for the approver's signature", {
-                    "ultraos_code": "APPROVAL_PENDING", "job_id": job_id,
-                    "how": f"ultraos host sign {job_id}"})
+                    "parametral_code": "APPROVAL_PENDING", "job_id": job_id,
+                    "how": f"parametral host sign {job_id}"})
             return result
         try:
             payload = self.job_queue.submit(params)
         except hostapply.HostApplyError as exc:
             code = -32004 if exc.code == "APPROVAL_REQUIRED" else -32602
-            raise RpcError(code, str(exc), {"ultraos_code": exc.code}) from exc
+            raise RpcError(code, str(exc), {"parametral_code": exc.code}) from exc
         result = self.job_queue.wait(payload["job_id"],
                                      timeout_s=float(params.get("wait_s", 3)))
         if result is not None:
             return result
         raise RpcError(-32005, "change queued: the approver must sign this exact job", {
-            "ultraos_code": "APPROVAL_PENDING", "job_id": payload["job_id"],
+            "parametral_code": "APPROVAL_PENDING", "job_id": payload["job_id"],
             "steps": [step["kind"] for step in payload["steps"]],
-            "how": f"ultraos host sign {payload['job_id']}"})
+            "how": f"parametral host sign {payload['job_id']}"})
 
     def _host_nix_profile(self, params: dict, _token) -> dict:
         """Tier-0: rootless, generation-based. Validated now, executed in phase 2."""
@@ -936,7 +936,7 @@ class _Handler(socketserver.StreamRequestHandler):
                 self.connection.sendall(json.dumps({
                     "jsonrpc": "2.0", "id": None,
                     "error": {"code": -32010, "message": "peer uid rejected",
-                              "data": {"ultraos_code": "PEER_REJECTED"}}}).encode() + b"\n")
+                              "data": {"parametral_code": "PEER_REJECTED"}}}).encode() + b"\n")
             except OSError:
                 pass
             return
@@ -950,7 +950,7 @@ class _Handler(socketserver.StreamRequestHandler):
             if len(line) > MAX_LINE:
                 self._send({"jsonrpc": "2.0", "id": None,
                             "error": {"code": -32600, "message": "request line too large",
-                                      "data": {"ultraos_code": "INVALID_REQUEST"}}})
+                                      "data": {"parametral_code": "INVALID_REQUEST"}}})
                 return
             if not line.strip():
                 continue
@@ -959,12 +959,12 @@ class _Handler(socketserver.StreamRequestHandler):
             except json.JSONDecodeError as exc:
                 self._send({"jsonrpc": "2.0", "id": None,
                             "error": {"code": -32700, "message": f"parse error: {exc}",
-                                      "data": {"ultraos_code": "PARSE_ERROR"}}})
+                                      "data": {"parametral_code": "PARSE_ERROR"}}})
                 continue
             if isinstance(request, list):
                 self._send({"jsonrpc": "2.0", "id": None,
                             "error": {"code": -32600, "message": "batch requests are not supported",
-                                      "data": {"ultraos_code": "INVALID_REQUEST"}}})
+                                      "data": {"parametral_code": "INVALID_REQUEST"}}})
                 continue
             self._send(self.daemon.handle(request))
 

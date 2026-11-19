@@ -1,4 +1,4 @@
-# Ultra SI OS — Architecture (v1)
+# Parametral OS — Architecture (v1)
 
 Stack decision: **Arch tabanı + Nix** (pacman for system packages, `nix`/home-manager for the
 rootless user profile). The layer itself is distro-agnostic — package commands live in policy,
@@ -6,12 +6,12 @@ not in code — but the shipped policy, the sandbox bind layout and the test hos
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Ultra SI local AI (Berkay) — GC Shield lives HERE, in the weights│
+│ Parametral local AI (Berkay) — GC Shield lives HERE, in the weights│
 │   soft layer: adversarial-trained + DPO refusals, probabilistic  │
 └───────────────┬─────────────────────────────────────────────────┘
                 │ JSON-RPC 2.0 / NDJSON over AF_UNIX   (docs/API-v1.md)
 ┌───────────────▼─────────────────────────────────────────────────┐
-│ ultraosd (gateway)                                              │
+│ parametrald (gateway)                                              │
 │   0. hard-deny oracle ──► separate process, signed read-only list│
 │   1. policy engine (default deny, approval flags)                │
 │   2. capability tokens (HMAC, TTL, use cap, node scope)          │
@@ -30,7 +30,7 @@ not in code — but the shipped policy, the sandbox bind layout and the test hos
 1. **GC Shield — in-model, soft.** 1.800 adversarial examples + DPO refusal training. It makes
    the model less likely to *produce* harmful intent. It is probabilistic, it has no socket, and
    it can be jailbroken. Therefore it is **not** a gate: nothing in this repo queries it.
-2. **Hard-deny oracle — separate process, hard.** `harddenyd` holds `policy/hard_deny.v1.json`:
+2. **Hard-deny oracle — separate process, hard.** `parametral-harddeny` holds `policy/hard_deny.v1.json`:
    tier-2 rules (disk-destroying tools, `modprobe`/`kexec`, `/boot/**`, `/etc/shadow`, credential
    paths, `/dev/**` mounts, the policy and key files themselves). Deterministic: same request,
    same verdict, no model in the loop. The list is read-only and **Ed25519-signed**: the oracle
@@ -106,7 +106,7 @@ cost, they do not prove safety).
    rewrite the chain. Off-host anchoring is phase 5.
 2. **Signature keys are asymmetric now (Ed25519), but still not root-owned in development.** The
    oracle only needs the public key, so reading it earns an attacker nothing; however the dev
-   signing key sits in `~/.local/state/ultraos/keys/hard_deny.ed25519.sk`. Production must keep it
+   signing key sits in `~/.local/state/parametral/keys/hard_deny.ed25519.sk`. Production must keep it
    root-owned (or in a TPM/HSM/offline machine) and run `sign` outside the AI's uid — otherwise a
    same-uid AI could sign its own list. Same for the approver HMAC key (needs a separate approver
    uid). Until then the oracle protects against a *jailbroken model*, not a compromised account.
@@ -116,7 +116,7 @@ cost, they do not prove safety).
    process limits come from `pids.max` in cgroup v2.
 5. Sandbox is a container, not a VM: shared kernel. microVM profile is phase 5.
 6. No GPU, no display, no dbus passthrough in v1 — GUI apps are out of scope until phase 5.
-7. `harddenyd` and `ultraosd` may share a uid in development; production runs them as separate
+7. `parametral-harddeny` and `parametrald` may share a uid in development; production runs them as separate
    units with root-owned, read-only rule files.
 8. `sysapply` runs as root on the target image and is tested here with a stubbed `pacman` and a
    scratch spool: the signature hand-off, preset validation, snapshot ordering and refusal paths

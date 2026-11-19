@@ -8,8 +8,8 @@ import unittest
 
 import support
 
-from ultraos.approvals import ApprovalStore
-from ultraos.client import ClientError
+from parametral.approvals import ApprovalStore
+from parametral.client import ClientError
 
 
 class DaemonTest(unittest.TestCase):
@@ -57,7 +57,7 @@ class DaemonTest(unittest.TestCase):
         with self.assertRaises(ClientError) as raised:
             self.client.call("v1.node.status", node_id="node-42")
         self.assertEqual(raised.exception.code, -32011)
-        self.assertEqual(raised.exception.ultraos_code, "NODE_MISMATCH")
+        self.assertEqual(raised.exception.parametral_code, "NODE_MISMATCH")
 
     def test_unknown_method(self):
         with self.assertRaises(ClientError) as raised:
@@ -77,7 +77,7 @@ class DaemonTest(unittest.TestCase):
         with self.assertRaises(ClientError) as raised:
             self.client.call("v1.exec.run", sandbox_id=self.sandbox_id, cmd=["echo", "hi"])
         self.assertEqual(raised.exception.code, -32002)
-        self.assertEqual(raised.exception.ultraos_code, "TOKEN_REQUIRED")
+        self.assertEqual(raised.exception.parametral_code, "TOKEN_REQUIRED")
 
     def test_dangerous_command_denied_at_policy_level(self):
         with self.assertRaises(ClientError) as raised:

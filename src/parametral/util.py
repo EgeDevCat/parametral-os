@@ -60,23 +60,23 @@ def _env(name: str, default: str) -> str:
 
 def state_dir() -> str:
     """Persistent state: sandboxes, audit, tokens, approvals, snapshots."""
-    return os.path.abspath(_env("ULTRAOS_STATE", os.path.expanduser("~/.local/state/ultraos")))
+    return os.path.abspath(_env("PARAMETRAL_STATE", os.path.expanduser("~/.local/state/parametral")))
 
 
 def runtime_dir() -> str:
     """Sockets, pids, ephemeral handshake material."""
-    default = os.path.join(_env("XDG_RUNTIME_DIR", "/tmp"), "ultraos")
-    return os.path.abspath(_env("ULTRAOS_RUNTIME", default))
+    default = os.path.join(_env("XDG_RUNTIME_DIR", "/tmp"), "parametral")
+    return os.path.abspath(_env("PARAMETRAL_RUNTIME", default))
 
 
 def socket_path() -> str:
-    return os.path.abspath(_env("ULTRAOS_SOCKET", os.path.join(runtime_dir(), "v1", "control.sock")))
+    return os.path.abspath(_env("PARAMETRAL_SOCKET", os.path.join(runtime_dir(), "v1", "control.sock")))
 
 
 def policy_path() -> str:
     default = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__)))), "policy", "policy.v1.json")
-    return os.path.abspath(_env("ULTRAOS_POLICY", default))
+    return os.path.abspath(_env("PARAMETRAL_POLICY", default))
 
 
 def ensure_dir(path: str, mode: int = 0o700) -> str:

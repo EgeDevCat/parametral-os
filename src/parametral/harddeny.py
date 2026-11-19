@@ -1,4 +1,4 @@
-"""harddenyd — the deterministic Tier-2 oracle.
+"""parametral-harddeny — the deterministic Tier-2 oracle.
 
 Why this is a separate process and not part of the model: GC Shield is an
 in-model training defence (adversarial examples + DPO refusals). It makes harmful
@@ -121,7 +121,7 @@ class HardDenyEngine:
 
 
 # ------------------------------------------------------------- ed25519 crypto
-# Implementation lives in ultraos.ed25519 (shared with the approval gate and
+# Implementation lives in parametral.ed25519 (shared with the approval gate and
 # sysapply). The oracle only ever loads the PUBLIC key.
 
 from . import ed25519 as _ed  # noqa: E402  (kept here for call-site clarity)
@@ -365,7 +365,7 @@ def serve(rules_path: str, pub_path: str, socket_path: str,
     watcher = RulesWatcher(rules_path, on_change,
                            expected_sha256=engine.body_sha256).start()
 
-    print(json.dumps({"event": "harddenyd-listening", "socket": socket_path,
+    print(json.dumps({"event": "parametral-harddeny-listening", "socket": socket_path,
                       "rules_version": engine.version, "rules_sig": engine.sig,
                       "allowed_uids": sorted(server.allowed_uids)}), flush=True)
     if ready is not None:
@@ -380,7 +380,7 @@ def serve(rules_path: str, pub_path: str, socket_path: str,
         server.server_close()
         util.try_unlink(socket_path)
     if closed["reason"] and closed["reason"] != "interrupted":
-        print(json.dumps({"event": "harddenyd-closed", "reason": closed["reason"]}),
+        print(json.dumps({"event": "parametral-harddeny-closed", "reason": closed["reason"]}),
               flush=True)
         status = 3
     return status

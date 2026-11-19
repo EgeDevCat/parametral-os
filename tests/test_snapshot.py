@@ -6,15 +6,15 @@ import unittest
 
 import support
 
-from ultraos.client import ClientError
-from ultraos.sandbox import SandboxError, SandboxManager
+from parametral.client import ClientError
+from parametral.sandbox import SandboxError, SandboxManager
 
 
 class SandboxSnapshotTest(unittest.TestCase):
     def setUp(self):
         import tempfile
 
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-snap-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-snap-")
         self.manager = SandboxManager(self.tmp, defaults={"memory_mb": 256})
         self.meta = self.manager.create(name="snap")
         self.sid = self.meta["sandbox_id"]
@@ -137,10 +137,10 @@ class DaemonSnapshotTest(unittest.TestCase):
             self.client.request_permission("snapshot.restore",
                                            {"sandbox_id": self.sid}, "roll back")
         self.assertEqual(raised.exception.code, -32004)
-        self.assertEqual(raised.exception.data["ultraos_code"], "APPROVAL_REQUIRED")
+        self.assertEqual(raised.exception.data["parametral_code"], "APPROVAL_REQUIRED")
 
         approval_id = raised.exception.data["approval_id"]
-        from ultraos.approvals import ApprovalStore
+        from parametral.approvals import ApprovalStore
 
         store = self.harness.approver_store()
         proof = store.proof(approval_id, "approved")
@@ -163,7 +163,7 @@ class DaemonSnapshotTest(unittest.TestCase):
             self.client.request_permission("snapshot.restore", {"sandbox_id": self.sid}, "roll back")
         except ClientError as exc:
             approval_id = exc.data["approval_id"]
-        from ultraos.approvals import ApprovalStore
+        from parametral.approvals import ApprovalStore
 
         proof = self.harness.approver_store().proof(approval_id, "approved")
         self.client.call("v1.approvals.decide", approval_id=approval_id, decision="approve",

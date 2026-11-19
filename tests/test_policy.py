@@ -8,7 +8,7 @@ import unittest
 
 import support  # noqa: F401  (sets sys.path)
 
-from ultraos.policy import OPERATIONS, Policy, PolicyError
+from parametral.policy import OPERATIONS, Policy, PolicyError
 
 
 class DefaultDenyTest(unittest.TestCase):

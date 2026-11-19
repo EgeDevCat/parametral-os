@@ -1,7 +1,7 @@
-# Ultra SI OS — Tool API, **v1**
+# Parametral OS — Tool API, **v1**
 
 Status: **FROZEN (v1.4.0)** — 2026-11-19  (v1.0.0 + host-tier methods; 1.1.1 pinned Ed25519 and the closed tier-1 presets; 1.2.0 implemented `snapshot.*`; 1.3.0 `app.*`; 1.4.0 implements `host.apply` as a signed-job pipeline; see §11)
-Owner of this document: OS-layer team (this repo). Consumer: Ultra SI local AI (Berkay).
+Owner of this document: OS-layer team (this repo). Consumer: Parametral local AI (Berkay).
 Change control: additive only, see §11.
 
 ---
@@ -33,7 +33,7 @@ The OS layer guarantees, for every request it accepts:
 | layer | what it is | failure mode | role |
 |---|---|---|---|
 | **GC Shield** | in-model training: 1.800 adversarial examples + DPO refusal training | probabilistic; can be jailbroken | *soft*: makes harmful intent less likely to be produced |
-| **Hard-deny oracle** (`harddenyd`) | separate deterministic process, **Ed25519-signed** read-only rule list (the oracle holds only the public key), tier 2 | no model in the loop: same input, same verdict | *hard*: disk tools, `/etc/shadow`, `/boot/**`, credential reads, host-mutating mounts → always refused, no approval offered |
+| **Hard-deny oracle** (`parametral-harddeny`) | separate deterministic process, **Ed25519-signed** read-only rule list (the oracle holds only the public key), tier 2 | no model in the loop: same input, same verdict | *hard*: disk tools, `/etc/shadow`, `/boot/**`, credential reads, host-mutating mounts → always refused, no approval offered |
 | **Sandbox** | bubblewrap namespaces + seccomp + cgroups | kernel bug (out of scope until microVM) | *physical*: blast radius is one directory + one cgroup |
 
 The AI's request path is: **oracle → policy → token → handler → audit**. The oracle
@@ -58,9 +58,9 @@ Tier 1 is where a human says yes once per real change. Tier 2 has no human overr
 
 - **Protocol**: JSON-RPC 2.0, one JSON object per line (NDJSON framing, `\n` terminated, UTF-8).
 - **Socket**: `AF_UNIX`, `SOCK_STREAM`
-  - production: `/run/ultraos/v1/control.sock`
-  - per-user / development: `$XDG_RUNTIME_DIR/ultraos/v1/control.sock`
-  - override: env `ULTRAOS_SOCKET`
+  - production: `/run/parametral/v1/control.sock`
+  - per-user / development: `$XDG_RUNTIME_DIR/parametral/v1/control.sock`
+  - override: env `PARAMETRAL_SOCKET`
 - **Max request line**: 1 MiB (larger → `-32600`, connection closed).
 - **Auth on the socket**: `SO_PEERCRED`; server rejects any peer whose uid != daemon uid
   (error `-32010 PEER_REJECTED`). No TCP listener exists in v1. No network auth exists in v1.
@@ -109,11 +109,11 @@ Rules binding both sides:
 
 ```json
 {"jsonrpc":"2.0","id":"req-0001","error":{"code":-32001,"message":"policy denied",
- "data":{"ultraos_code":"POLICY_DENIED","rule_id":"default-deny","operation":"exec.run",
+ "data":{"parametral_code":"POLICY_DENIED","rule_id":"default-deny","operation":"exec.run",
          "hint":"request a capability token via v1.permission.request"}}}
 ```
 
-| code | ultraos_code | meaning |
+| code | parametral_code | meaning |
 |---|---|---|
 | -32700 | `PARSE_ERROR` | invalid JSON |
 | -32600 | `INVALID_REQUEST` | envelope/params schema violation (`data.field` names the field) |
@@ -292,10 +292,10 @@ only accepted from a peer holding the `approver` role (see §7).
  "env":{"LANG":"C.UTF-8"}}
 // result
 {"sandbox_id":"sbx_7f3a1c","name":"ripgrep-demo","state":"created",
- "root":"/var/lib/ultraos/sandboxes/sbx_7f3a1c",
+ "root":"/var/lib/parametral/sandboxes/sbx_7f3a1c",
  "limits":{"cpu_cores":1.0,"memory_mb":512,"pids":128,"disk_mb":256},
  "net":false,"created_at":"2026-11-19T09:00:12Z",
- "cgroup":"/sys/fs/cgroup/ultraos/sbx_7f3a1c"}
+ "cgroup":"/sys/fs/cgroup/parametral/sbx_7f3a1c"}
 ```
 
 - `profile`: `strict` (default) | `net-client` (reserves a net namespace that `net.open` can
@@ -496,8 +496,8 @@ argv an approval covers is signed by the approver, then verified and executed by
  "snapshot":true,"approval_id":"apr_…","wait_s":3}
 
 // 2) queued → approver signs the exact payload
-//    → {"error":{"code":-32005,"data":{"ultraos_code":"APPROVAL_PENDING",
-//         "job_id":"job_ab12…","how":"ultraos host sign job_ab12…"}}}
+//    → {"error":{"code":-32005,"data":{"parametral_code":"APPROVAL_PENDING",
+//         "job_id":"job_ab12…","how":"parametral host sign job_ab12…"}}}
 
 // 3) collect the result
 {"node_id":"local","job_id":"job_ab12…"}
@@ -518,7 +518,7 @@ Job payload (canonical JSON, that byte string is what gets signed):
 
 Rules enforced by `sysapply` before anything runs:
 
-1. signature verifies against the **approver public key** (`/etc/ultraos/keys/approver.pub`);
+1. signature verifies against the **approver public key** (`/etc/parametral/keys/approver.pub`);
    the gateway holds no key that can produce it;
 2. `payload_sha256` in the signature record matches the payload (hand-edited jobs are refused);
 3. the payload re-validates against the closed preset list (`hostapply`): no interpreters, no
@@ -561,8 +561,8 @@ What `v1.exec.run` actually does — the AI may rely on each line:
 
 | role | who | allowed |
 |---|---|---|
-| `client` | Ultra SI AI process | everything except `approvals.decide` |
-| `approver` | human UI (desktop app / `ultraos` CLI) | `approvals.*`, `audit.query`, `status` |
+| `client` | Parametral AI process | everything except `approvals.decide` |
+| `approver` | human UI (desktop app / `parametral` CLI) | `approvals.*`, `audit.query`, `status` |
 | `operator` | root/sysadmin | policy file, token key, daemon lifecycle (not via API) |
 
 Role is derived from the socket peer: the daemon's own uid + a per-role `SO_PEERCRED`
@@ -575,7 +575,7 @@ because it never has that key — no root needed, no ambient authority.
 
 ## 8. Policy file (input to the engine, not part of the wire protocol)
 
-`/etc/ultraos/policy/policy.v1.json`, version-controlled in git (`policy/` in this repo).
+`/etc/parametral/policy/policy.v1.json`, version-controlled in git (`policy/` in this repo).
 `default` is **deny**. A rule:
 
 ```json

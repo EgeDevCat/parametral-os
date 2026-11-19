@@ -18,22 +18,22 @@ GUARD = os.path.join(REPO, "bin", "seccomp_guard")
 
 
 class Harness:
-    """Starts ultraosd on a private socket + state dir; cleans up on close()."""
+    """Starts parametrald on a private socket + state dir; cleans up on close()."""
 
     def __init__(self, policy: str | None = None):
-        from ultraos.daemon import UltraOsDaemon, UltraOsServer
+        from parametral.daemon import UltraOsDaemon, UltraOsServer
 
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-test-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-test-")
         self.state = os.path.join(self.tmp, "state")
         self.socket_path = os.path.join(self.tmp, "control.sock")
-        self._old_env = {key: os.environ.get(key) for key in ("XDG_RUNTIME_DIR", "ULTRAOS_STATE")}
+        self._old_env = {key: os.environ.get(key) for key in ("XDG_RUNTIME_DIR", "PARAMETRAL_STATE")}
         os.environ["XDG_RUNTIME_DIR"] = os.path.join(self.tmp, "run")
-        os.environ["ULTRAOS_STATE"] = self.state
+        os.environ["PARAMETRAL_STATE"] = self.state
 
-        from ultraos import harddeny as hd
-        from ultraos import util
+        from parametral import harddeny as hd
+        from parametral import util
 
-        from ultraos import ed25519 as _ed
+        from parametral import ed25519 as _ed
 
         self.approver_pub_path = os.path.join(util.runtime_dir(), "approver.pub")
         self.approver_sk_path = os.path.join(util.runtime_dir(), "approver.sk")
@@ -74,13 +74,13 @@ class Harness:
 
     def approver_store(self):
         """Approver-side store: holds the private key, used by tests to sign decisions."""
-        from ultraos.approvals import ApprovalStore
+        from parametral.approvals import ApprovalStore
 
         return ApprovalStore(self.state, self.approver_pub_path,
                              approver_sk_path=self.approver_sk_path)
 
     def client(self):
-        from ultraos.client import Client
+        from parametral.client import Client
 
         return Client(socket_path=self.socket_path)
 

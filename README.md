@@ -60,7 +60,7 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 
 - **GC Shield** is in-model training (adversarial examples + DPO refusals). Soft, probabilistic,
   no socket — nothing in this repo queries it.
-- **Oracle** (`harddenyd`) is a separate process: signed read-only rules, public-key verification,
+- **Oracle** (`parametral-harddeny`) is a separate process: signed read-only rules, public-key verification,
   `SO_PEERCRED`-gated socket, self-closing if its rules change at runtime, fail-closed if absent.
 - **Tiers**: 0 = sandbox / rootless Nix profile (no human), 1 = real system write (approval +
   snapshot, reviewed presets only), 2 = hard-deny list (no approval path exists).
@@ -72,8 +72,8 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 | `docs/API-v1.md` | the wire contract, frozen v1.2.0 — the AI codes against this |
 | `docs/ARCHITECTURE.md` | three layers, three tiers, trust boundaries, honest limitations |
 | `docs/ROADMAP.md` | three-actor plan v0.3: Arch base / AI / this layer / OS mind |
-| `src/ultraos/` | gateway, policy, tokens, approvals, audit, sandbox, oracle, `appinstall`, `sysapply`, tier-1 validator |
-| `src/ultraos_guard.c` | in-sandbox seccomp + rlimit guard (compiled to `bin/seccomp_guard`) |
+| `src/parametral/` | gateway, policy, tokens, approvals, audit, sandbox, oracle, `appinstall`, `sysapply`, tier-1 validator |
+| `src/parametral_guard.c` | in-sandbox seccomp + rlimit guard (compiled to `bin/seccomp_guard`) |
 | `policy/policy.v1.json` | allow/approval rules, default deny |
 | `policy/hard_deny.v1.json` + `.sig` + `.v1.pub` | tier-2 list, Ed25519-signed |
 | `tests/` | 171 unittest cases, no third-party deps |
@@ -98,13 +98,13 @@ Run it for real (two units in production, two terminals here):
 bin/harddeny keygen        # once: Ed25519 keypair; private key stays with the operator
 bin/harddeny sign          # sign policy/hard_deny.v1.json
 bin/harddeny verify        # verify with the public key only
-bin/harddenyd              # terminal 1: tier-2 oracle
-bin/ultraosd               # terminal 2: gateway
+bin/parametral-harddeny              # terminal 1: tier-2 oracle
+bin/parametrald               # terminal 2: gateway
 
-bin/ultraos status
-bin/ultraos sandbox create demo --auto-permission
-bin/ultraos exec <sandbox_id> --auto-permission -- wipefs -a /dev/sda   # refused, tier 2
-bin/ultraos audit verify
+bin/parametral status
+bin/parametral sandbox create demo --auto-permission
+bin/parametral exec <sandbox_id> --auto-permission -- wipefs -a /dev/sda   # refused, tier 2
+bin/parametral audit verify
 ```
 
 ## The API in four lines
@@ -116,7 +116,7 @@ bin/ultraos audit verify
 {"jsonrpc":"2.0","id":"4","method":"v1.fs.write","params":{"node_id":"local","sandbox_id":"sbx_l_…","path":"/work/a.txt","content":"hi","capability_token":"u1.…"}}
 ```
 
-Every response carries `node_id`-scoped results; errors carry stable `ultraos_code` values
+Every response carries `node_id`-scoped results; errors carry stable `parametral_code` values
 (`POLICY_DENIED`, `TOKEN_REQUIRED`, `APPROVAL_REQUIRED`, `HARD_DENY_UNAVAILABLE`, …).
 
 ## Invariants that have tests
@@ -133,6 +133,34 @@ Every response carries `node_id`-scoped results; errors carry stable `ultraos_co
   are detected (`tests/test_audit.py`).
 - No bare `except:` in `src/` — failures surface, they are not swallowed.
 
+## Roadmap
+
+| line | what | state |
+|---|---|---|
+| **A** | Arch base: btrfs (`@`/`@home`/`@var`/`@snapshots`), LUKS, both kernels, 4-user separation | install kit done (`install/`), ISO build pending |
+| **B** | Nix-first `app.install`: install → verify → ≤3 attempts → honest report; `home-manager` (tier 0) | `app.install` done (stubbed nix in tests); `host.nix_profile` pending |
+| **C** | Tier-1: approval → approver-signed job → `sysapply` (root) → snapshot → preset-only run | done and tested; enable as a unit on the image |
+| **D** | hardening: per-app network allowlist, btrfs qgroup quota, off-host audit anchor, CI | in progress |
+| **E** | later: microVM profile, multi-node, 80B cloud model (separate product) | reserved, no code |
+| **F** | OS mind: experience-store schema (F0), 10 small expert runtime (F1), expert training (F2) | runtime side is ours, training side is theirs |
+
+Full detail, owners and "done" criteria: [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+## Scope: the AI is not in this repository
+
+This repo is the **OS half**: gateway, policy, oracle, sandbox, snapshots, audit, tier-1 executor,
+install kit. It exposes one contract (`docs/API-v1.md`) and executes nothing the contract does not
+name.
+
+The other half — the model family (Ultra SI), GC Shield training, the agent loop, the cascade and
+the 10 experts' training — lives in a separate project on the AI side. It reaches this system only
+through the JSON-RPC socket. GC Shield is **not** an OS component here: it lives in the weights,
+it has no socket, and no code in this repo queries it.
+
+Naming: brand is **Parametral OS**; binaries are `parametrald` (gateway),
+`parametral-harddeny` (tier-2 oracle), `parametral-sysapply` (tier-1 executor); state and config
+live under `/var/lib/parametral` and `/etc/parametral`.
+
 ## Limitations (read before trusting it)
 
 1. Audit is tamper-**evident**, not tamper-proof: same-uid (or root) can rewrite the chain.
@@ -140,7 +168,7 @@ Every response carries `node_id`-scoped results; errors carry stable `ultraos_co
    operator's state dir. Until that moves, the oracle stops a jailbroken model, not a compromised
    account.
 3. Tier 1 needs a human twice by design: once to approve the operation, once to sign the exact
-   argv (`ultraos host sign <job_id>`). That is deliberate — approval and payload cannot drift.
+   argv (`parametral host sign <job_id>`). That is deliberate — approval and payload cannot drift.
    `host.nix_profile` is still contract-only.
 4. `app.install` is implemented end-to-end (manifest → snapshot → sandboxed install → verify →
    ≤3 attempts → real stderr report), but the dev host has no `/nix/store`, so the tests run a

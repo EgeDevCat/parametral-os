@@ -53,7 +53,7 @@ class Installer:
     def __init__(self, sandboxes: SandboxManager, nix_bin: str = "nix",
                  state_root: str | None = None, max_attempts: int = MAX_ATTEMPTS):
         self.sandboxes = sandboxes
-        self.nix_bin = nix_bin or os.environ.get("ULTRAOS_NIX_BIN", "nix")
+        self.nix_bin = nix_bin or os.environ.get("PARAMETRAL_NIX_BIN", "nix")
         self.state_root = state_root or sandboxes.state_root
         self.records_dir = util.ensure_dir(os.path.join(self.state_root, "apps"))
         self.max_attempts = max(1, min(int(max_attempts), MAX_ATTEMPTS))

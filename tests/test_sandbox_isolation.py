@@ -8,13 +8,13 @@ import unittest
 
 import support  # noqa: F401
 
-from ultraos.proof import run_proof
-from ultraos.sandbox import Limits, SandboxError, SandboxManager
+from parametral.proof import run_proof
+from parametral.sandbox import Limits, SandboxError, SandboxManager
 
 
 class IsolationTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-sbx-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-sbx-")
         self.manager = SandboxManager(self.tmp, node_id="local",
                                       defaults={"cpu_cores": 0.5, "memory_mb": 256,
                                                 "pids": 64, "disk_mb": 32})
@@ -151,11 +151,11 @@ class IsolationTest(unittest.TestCase):
         self.assertEqual(raised.exception.detail["milestone"], "phase-5")
 
     def test_environment_is_cleared(self):
-        os.environ["ULTRAOS_TEST_LEAK"] = "host-secret"
+        os.environ["PARAMETRAL_TEST_LEAK"] = "host-secret"
         try:
             result = self.manager.run(self.meta["sandbox_id"], ["sh", "-c", "env"])
         finally:
-            os.environ.pop("ULTRAOS_TEST_LEAK", None)
+            os.environ.pop("PARAMETRAL_TEST_LEAK", None)
         self.assertNotIn("host-secret", result["stdout"])
         self.assertIn("HOME=/home/user", result["stdout"])
         self.assertIn("PATH=/usr/local/bin:/usr/bin:/bin", result["stdout"])

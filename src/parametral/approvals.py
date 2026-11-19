@@ -2,7 +2,7 @@
 
 An approval is a short-lived record ("may I do X on Y, because Z?"). It does not
 execute anything by itself; it only lets `permission.request` mint a token.
-Decisions come from the approver side (desktop UI / `ultraos approvals approve`)
+Decisions come from the approver side (desktop UI / `parametral approvals approve`)
 and are signed with the approver key so the AI process cannot forge them.
 """
 from __future__ import annotations
@@ -167,7 +167,7 @@ class ApprovalStore:
         return list(self._notifier_errors)
 
 
-def desktop_notifier(summary_prefix: str = "Ultra SI izin isteği"):
+def desktop_notifier(summary_prefix: str = "Parametral izin isteği"):
     """Best-effort desktop notification; never required for correctness."""
     import shutil
     import subprocess
@@ -176,9 +176,9 @@ def desktop_notifier(summary_prefix: str = "Ultra SI izin isteği"):
         if not shutil.which("notify-send"):
             return
         body = (f"{approval['operation']}\n{approval['justification']}\n"
-                f"id: {approval['approval_id']}  (ultraos approvals approve "
+                f"id: {approval['approval_id']}  (parametral approvals approve "
                 f"{approval['approval_id']})")
-        subprocess.run(["notify-send", "-u", "critical", "-a", "Ultra SI OS",
+        subprocess.run(["notify-send", "-u", "critical", "-a", "Parametral OS",
                         summary_prefix, body], timeout=10, check=False)
 
     return notify

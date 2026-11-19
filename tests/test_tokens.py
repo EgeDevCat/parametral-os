@@ -8,12 +8,12 @@ import unittest
 
 import support  # noqa: F401
 
-from ultraos.tokens import TokenError, TokenStore
+from parametral.tokens import TokenError, TokenStore
 
 
 class TokenTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ultraos-token-")
+        self.tmp = tempfile.mkdtemp(prefix="parametral-token-")
         self.store = TokenStore(self.tmp, os.path.join(self.tmp, "key"), node_id="local",
                                 ttl_cap_s=60, default_max_uses=3)
 
@@ -95,7 +95,7 @@ class TokenTest(unittest.TestCase):
 
     def test_ttl_is_capped(self):
         _token, payload = self.store.issue(ops=["exec.run"], scope={}, ttl_s=999999)
-        from ultraos import util
+        from parametral import util
 
         lifetime = (util.parse_iso(payload["exp"]) - util.parse_iso(payload["iat"])).total_seconds()
         self.assertLessEqual(lifetime, 61)

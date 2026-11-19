@@ -2,16 +2,16 @@
 # 40-users.sh — the separation that makes the rest of the design meaningful.
 #
 #   operator  : the human. wheel, can do anything, types the passphrase.
-#   ultraos   : service user for ultraosd + harddenyd. No shell, no sudo.
+#   parametral   : service user for parametrald + parametral-harddeny. No shell, no sudo.
 #   approver  : owns the approval key, runs the approval UI. No sudo, no shell for AI.
 #   ai        : where the AI process lives. No groups, no sudo, 0700 home, cannot read
-#               /etc/ultraos/keys, cannot read the approver key, cannot touch /root.
+#               /etc/parametral/keys, cannot read the approver key, cannot touch /root.
 set -Eeuo pipefail
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
 
 echo "==> users"
 id operator  >/dev/null 2>&1 || useradd -m -G wheel -s /bin/bash operator
-id ultraos   >/dev/null 2>&1 || useradd -r -d /var/lib/ultraos -s /usr/bin/nologin ultraos
+id parametral   >/dev/null 2>&1 || useradd -r -d /var/lib/parametral -s /usr/bin/nologin parametral
 id approver  >/dev/null 2>&1 || useradd -r -d /var/lib/parametral -s /bin/bash approver
 id ai        >/dev/null 2>&1 || useradd -m -s /bin/bash ai
 
@@ -19,21 +19,21 @@ id ai        >/dev/null 2>&1 || useradd -m -s /bin/bash ai
 # no video/audio, no games. If a future step needs a group, that is a design change.
 usermod -G "" ai
 install -d -o ai -g ai -m 0700 /home/ai
-install -d -o ultraos -g ultraos -m 0750 /var/lib/ultraos
+install -d -o parametral -g parametral -m 0750 /var/lib/parametral
 install -d -o approver -g approver -m 0700 /var/lib/parametral
 install -d -o root -g root -m 0700 /var/lib/parametral/keys
 
 echo "==> passwords (interactive: operator types theirs, service users get none)"
 passwd operator
 passwd ai
-usermod -L ultraos
+usermod -L parametral
 usermod -L approver
 
 echo "==> sudo: only wheel, and the AI accounts are explicitly denied"
 cat > /etc/sudoers.d/10-parametral <<'EOF'
 %wheel ALL=(ALL:ALL) ALL
 ai       ALL=(ALL) !ALL
-ultraos  ALL=(ALL) !ALL
+parametral  ALL=(ALL) !ALL
 approver ALL=(ALL) !ALL
 EOF
 chmod 0440 /etc/sudoers.d/10-parametral
@@ -51,9 +51,9 @@ polkit.addRule(function(action, subject) {
 EOF
 
 echo "==> directory ownership for the OS layer"
-install -d -o root -g root -m 0755 /etc/ultraos
-install -d -o root -g root -m 0755 /etc/ultraos/policy
-install -d -o root -g root -m 0700 /etc/ultraos/keys
+install -d -o root -g root -m 0755 /etc/parametral
+install -d -o root -g root -m 0755 /etc/parametral/policy
+install -d -o root -g root -m 0700 /etc/parametral/keys
 install -d -o root -g root -m 0755 /etc/parametral
 
 echo "==> home permissions: other users cannot read each other"

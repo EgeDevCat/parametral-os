@@ -54,7 +54,7 @@ cat > /mnt/etc/nix/nix.conf <<'EOF'
 experimental-features = nix-command flakes
 sandbox = true
 require-sigs = true
-trusted-users = root ultraos
+trusted-users = root parametral
 allowed-users = @users
 EOF
 arch-chroot /mnt systemctl enable nix-daemon
