@@ -97,6 +97,10 @@ class SandboxManager:
         self.snapshots_dir = util.ensure_dir(os.path.join(self.state_root, "snapshots"))
         self.snapshot_notes: list[str] = []
         self.trash_dir = util.ensure_dir(os.path.join(self.state_root, "trash"))
+        # A root daemon (CI, early images) must not produce a root sandbox: the sandbox
+        # runs as this uid instead, and its writable trees are chowned to it.
+        self.sandbox_uid = int(os.environ.get("PARAMETRAL_SANDBOX_UID", "1000")) \
+            if os.getuid() == 0 else os.getuid()
         self.btrfs_delete_ok = False
         self.btrfs_available = self._probe_btrfs()
 
@@ -265,6 +269,13 @@ class SandboxManager:
             if len(os.path.join(net_dir, "net_0123456789-65535.sock")) > 100:
                 net_dir = os.path.join(tempfile.gettempdir(), f"parametral-net-{sid}")
             os.makedirs(net_dir, mode=0o700, exist_ok=True)
+            if os.getuid() == 0:
+                for path in (os.path.join(base, "root"), os.path.join(base, "home"),
+                             net_dir, os.path.join(base, "meta")):
+                    try:
+                        os.chown(path, self.sandbox_uid, self.sandbox_uid)
+                    except OSError as exc:
+                        self.snapshot_notes.append(f"chown failed for {path}: {exc}")
             meta = {
                 "sandbox_id": sid,
                 "node_id": self.node_id,
@@ -468,7 +479,10 @@ class SandboxManager:
             argv_nix_prefix = argv_nix
         else:
             argv_nix_prefix = []
-        argv = ["bwrap", "--unshare-all", "--die-with-parent", "--new-session",
+        argv = ["bwrap", "--unshare-all", "--die-with-parent", "--new-session"]
+        if os.getuid() == 0:
+            argv += ["--uid", str(self.sandbox_uid), "--gid", str(self.sandbox_uid)]
+        argv += [
                 "--ro-bind", "/usr", "/usr",
                 "--symlink", "usr/lib", "/lib",
                 "--symlink", "usr/lib64", "/lib64",

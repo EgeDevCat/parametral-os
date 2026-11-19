@@ -110,7 +110,9 @@ class _UnixServer(socketserver.ThreadingUnixStreamServer):
         super().__init__(path, _ProxyHandler)
         self.grant = grant
         self.destination = destination
-        os.chmod(path, 0o600)
+        # The dir is only reachable inside the sandbox (host-side parent is 0750 root:parametral)
+        # and the allow-list is enforced by the proxy, so the socket itself is 0666.
+        os.chmod(path, 0o666)
 
 
 class Grant:
@@ -134,7 +136,7 @@ class Grant:
 
     def start(self, directory: str) -> str:
         """Bind one Unix socket per allowed destination inside `directory`."""
-        util.ensure_dir(directory, 0o700)
+        util.ensure_dir(directory, 0o755)
         for host, port in self.hosts:
             name = f"{self.grant_id}-{port}.sock"
             path = os.path.join(directory, name)
