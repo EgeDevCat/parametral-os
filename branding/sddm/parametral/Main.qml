@@ -23,14 +23,27 @@ Rectangle {
         anchors.centerIn: parent
         spacing: 18 * root.u
 
-        Image {
-            id: mark
-            source: "logo-large.png"
+        Item {
             width: 150 * root.u
             height: 150 * root.u
             anchors.horizontalCenter: parent.horizontalCenter
-            fillMode: Image.PreserveAspectFit
-            smooth: true
+
+            Image {
+                anchors.centerIn: parent
+                source: "logo-glow.png"
+                width: parent.width * 1.7
+                height: parent.height * 1.7
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+            }
+
+            Image {
+                id: mark
+                anchors.fill: parent
+                source: "logo-large.png"
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+            }
         }
 
         Text {

@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """Render previews of the Parametral boot splash and login screen.
 
-The real boot uses Plymouth and the real login uses SDDM; these PNGs are the design
-reference both are built from (same colours, same spacing, same logo placement).
+These are NOT mock-ups: each preview composites the exact background.png the real
+theme loads, and draws the card with the same geometry the QML uses at 1920x1080
+(u = 1). If the preview looks right, SDDM looks right.
 """
-import math
 import os
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, "assets")
+BRAND = os.path.join(ROOT, "branding")
 
 W, H = 1920, 1080
-CREAM_TOP = (250, 246, 238)
-CREAM_BOTTOM = (236, 226, 210)
 INK = (26, 26, 30)
 INK_SOFT = (92, 88, 82)
 AMBER = (224, 169, 59)
+FIELD_BORDER = (230, 221, 204)
 
 F_LIGHT = "/usr/share/fonts/TTF/DejaVuSans-ExtraLight.ttf"
 F_REG = "/usr/share/fonts/TTF/DejaVuSans.ttf"
@@ -30,135 +30,130 @@ def font(path, size):
         return ImageFont.load_default()
 
 
-def gradient(size, top, bottom):
-    w, h = size
-    img = Image.new("RGB", (1, h))
-    px = img.load()
-    for y in range(h):
-        t = y / max(1, h - 1)
-        px[0, y] = tuple(round(a + (b - a) * t) for a, b in zip(top, bottom))
-    return img.resize((w, h), Image.BILINEAR)
-
-
-def soft_glow(size, center, radius, color, strength=90):
-    """A blurred radial blob, composited as a light halo."""
-    w, h = size
-    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    cx, cy = center
-    steps = 26
-    for i in range(steps, 0, -1):
-        r = radius * i / steps
-        a = int(strength * (1 - i / steps) ** 1.6)
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=color + (a,))
-    return layer.filter(ImageFilter.GaussianBlur(radius // 6))
+def canvas(which):
+    path = os.path.join(BRAND, which, "parametral", "background.png")
+    return Image.open(path).convert("RGBA").resize((W, H), Image.LANCZOS)
 
 
 def logo(size):
-    path = os.path.join(ASSETS, "parametral-mark-1024.png")
-    img = Image.open(path).convert("RGBA")
+    img = Image.open(os.path.join(ASSETS, "parametral-mark-1024.png")).convert("RGBA")
     img.thumbnail((size, size), Image.LANCZOS)
     return img
 
 
-def compose_base():
-    bg = gradient((W, H), CREAM_TOP, CREAM_BOTTOM).convert("RGBA")
-    bg = Image.alpha_composite(bg, soft_glow((W, H), (W // 2, 380), 620, (255, 250, 235), 120))
-    bg = Image.alpha_composite(bg, soft_glow((W, H), (W // 2, 760), 900, (236, 214, 176), 60))
-    return bg
+def draw_spaced(draw, cx, y, text, fnt, fill, spacing=1.2):
+    """Match the QML's font.letterSpacing for the wordmark."""
+    widths = [draw.textlength(ch, font=fnt) for ch in text]
+    total = sum(widths) + spacing * (len(text) - 1)
+    x = cx - total / 2
+    for ch, w in zip(text, widths):
+        draw.text((x, y), ch, font=fnt, fill=fill)
+        x += w + spacing
 
 
-def drop_shadow(mask_img, offset=(0, 18), blur=28, alpha=70):
-    pad = blur * 3
-    w, h = mask_img.size
-    canvas = Image.new("RGBA", (w + pad * 2, h + pad * 2), (0, 0, 0, 0))
-    shadow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
-    shadow.paste((30, 25, 20, alpha), (pad + offset[0], pad + offset[1]), mask_img)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(blur))
-    canvas = Image.alpha_composite(canvas, shadow)
-    canvas.paste(mask_img, (pad, pad), mask_img)
-    return canvas
-
-
-def draw_centered(draw, xy, text, fnt, fill):
-    x, y = xy
+def draw_centered(draw, cx, y, text, fnt, fill):
     box = draw.textbbox((0, 0), text, font=fnt)
-    draw.text((x - (box[2] - box[0]) / 2 - box[0], y), text, font=fnt, fill=fill)
+    draw.text((cx - (box[2] - box[0]) / 2 - box[0], y), text, font=fnt, fill=fill)
+    return box[3] - box[1]
 
 
 def render_boot(out):
-    img = compose_base()
-    mark = logo(300)
-    glow = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    glow.paste(mark, (W // 2 - mark.width // 2, 300), mark)
-    glow = glow.filter(ImageFilter.GaussianBlur(26))
-    img = Image.alpha_composite(img, glow)
-    img.paste(mark, (W // 2 - mark.width // 2, 300), mark)
+    img = canvas("plymouth")
+    mark = logo(256)
+    mx, my = W // 2 - mark.width // 2, H // 2 - mark.height // 2 - 48
+
+    halo = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    halo.paste(mark, (mx, my), mark)
+    img = Image.alpha_composite(img, halo.filter(ImageFilter.GaussianBlur(22)))
+    img.paste(mark, (mx, my), mark)
 
     d = ImageDraw.Draw(img)
-    draw_centered(d, (W // 2, 640), "Parametral", font(F_LIGHT, 96), INK)
-    draw_centered(d, (W // 2, 760), "S İ S T E M   B A Ş L A T I L I Y O R", font(F_REG, 22), INK_SOFT)
-
-    # three soft breathing dots
-    cy = 900
-    for i, x in enumerate((-44, 0, 44)):
-        r = 7 if i != 1 else 9
-        alpha = 210 if i == 1 else 120
-        d.ellipse([W // 2 + x - r, cy - r, W // 2 + x + r, cy + r], fill=INK + (alpha,))
+    for i, dx in enumerate((-46, 0, 46)):
+        cy = H // 2 + 150
+        r = 6 if i != 1 else 7
+        a = 235 if i == 1 else 130
+        d.ellipse([W // 2 + dx - r, cy - r, W // 2 + dx + r, cy + r], fill=INK + (a,))
 
     img.convert("RGB").save(out, quality=95)
     return out
 
 
 def render_login(out):
-    img = compose_base()
-
-    mark = logo(170)
-    img.paste(mark, (W // 2 - mark.width // 2, 150), mark)
+    img = canvas("sddm")
     d = ImageDraw.Draw(img)
-    draw_centered(d, (W // 2, 340), "Parametral", font(F_LIGHT, 68), INK)
 
-    card_w, card_h = 780, 480
-    cx, cy = W // 2 - card_w // 2, 470
+    f_word = font(F_LIGHT, 54)
+    f_title = font(F_LIGHT, 25)
+    f_field = font(F_REG, 19)
+    f_btn = font(F_REG, 19)
+    f_foot = font(F_LIGHT, 18)
 
-    # shadow layer: the same rounded rect, blurred, sitting slightly lower
-    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    # --- measure the column exactly as the QML lays it out (spacing 18) ---
+    word_h = d.textbbox((0, 0), "Parametral", font=f_word)[3]
+    mark_s, card_w, card_h = 150, 620, 348
+    col_h = mark_s + 18 + word_h + 18 + card_h
+    top = (H - col_h) // 2
+
+    mark = logo(mark_s)
+    # the same halo the QML draws behind the mark, so the preview matches
+    gs = int(mark_s * 1.7)
+    halo = Image.open(os.path.join(BRAND, "sddm", "parametral", "logo-glow.png")).convert("RGBA")
+    halo = halo.resize((gs, gs), Image.LANCZOS)
+    img.alpha_composite(halo, (W // 2 - gs // 2, top + mark_s // 2 - gs // 2))
+    img.paste(mark, (W // 2 - mark.width // 2, top), mark)
+    d = ImageDraw.Draw(img)
+
+    word_y = top + mark_s + 18
+    draw_spaced(d, W // 2, word_y, "Parametral", f_word, INK, 1.2)
+
+    card_x = W // 2 - card_w // 2
+    card_y = word_y + word_h + 18
+
+    # soft shadow under the card
+    shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
     ImageDraw.Draw(shadow).rounded_rectangle(
-        [cx, cy + 20, cx + card_w, cy + card_h + 22], radius=34, fill=(58, 48, 34, 26))
-    img = Image.alpha_composite(img, shadow.filter(ImageFilter.GaussianBlur(52)))
+        [card_x, card_y + 22, card_x + card_w, card_y + card_h + 26],
+        radius=26, fill=(60, 50, 36, 30))
+    img = Image.alpha_composite(img, shadow.filter(ImageFilter.GaussianBlur(48)))
 
-    card = Image.new("RGBA", (card_w, card_h), (255, 254, 251, 252))
-    # the card sits on a near-white background: a very light border keeps the rounded
-    # shape readable without looking hard
-    ImageDraw.Draw(card).rounded_rectangle([0, 0, card_w - 1, card_h - 1], radius=34,
-                                          fill=(255, 254, 251, 252),
-                                          outline=(214, 203, 185, 90), width=2)
-    img.alpha_composite(card, (cx, cy))
-
+    card = Image.new("RGBA", (card_w, card_h), (0, 0, 0, 0))
+    ImageDraw.Draw(card).rounded_rectangle(
+        [0, 0, card_w - 1, card_h - 1], radius=26,
+        fill=(255, 254, 251, 252), outline=(228, 219, 202, 160), width=2)
+    img.alpha_composite(card, (card_x, card_y))
     d = ImageDraw.Draw(img)
-    draw_centered(d, (W // 2, cy + 46), "Hoş geldiniz", font(F_LIGHT, 36), INK)
 
-    field_w, field_h = 580, 64
+    # inner column: title, two fields, button (spacing 14), centred
+    title_h = d.textbbox((0, 0), "Hoş geldiniz", font=f_title)[3]
+    inner_h = title_h + 14 + 54 + 14 + 54 + 14 + 56
+    iy = card_y + (card_h - inner_h) // 2
+    draw_centered(d, W // 2, iy, "Hoş geldiniz", f_title, (92, 88, 82))
+
+    field_w, field_h = 520, 54
     fx = W // 2 - field_w // 2
-    fy1 = cy + 126
-    for i, label in enumerate(("operator", "••••••••••")):
-        fy = fy1 + i * 88
-        d.rounded_rectangle([fx, fy, fx + field_w, fy + field_h], radius=16,
-                            fill=(255, 255, 255, 225), outline=(222, 212, 196, 220), width=2)
-        d.text((fx + 24, fy + 19), label, font=font(F_REG, 23), fill=INK if i == 0 else INK_SOFT)
+    fy = iy + title_h + 14
 
-    by = fy1 + 2 * 88 + 8
-    d.rounded_rectangle([fx, by, fx + field_w, by + 64], radius=16, fill=AMBER + (255,))
-    draw_centered(d, (W // 2, by + 17), "Giriş yap", font(F_REG, 23), (38, 30, 16))
+    for label, focused in (("kullanıcı", True), ("••••••••••", False)):
+        d.rounded_rectangle([fx, fy, fx + field_w, fy + field_h], radius=13,
+                            fill=(255, 255, 255, 255),
+                            outline=AMBER if focused else FIELD_BORDER,
+                            width=2 if focused else 1)
+        # vertical centring for the placeholder text
+        tb = d.textbbox((0, 0), label, font=f_field)
+        d.text((fx + 22, fy + (field_h - (tb[3] - tb[1])) / 2 - tb[1]),
+               label, font=f_field, fill=(26, 26, 30) if focused else (120, 114, 105))
+        fy += field_h + 14
 
-    draw_centered(d, (W // 2, H - 84), "Parametral OS  ·  sürüm 0.3", font(F_LIGHT, 22), INK_SOFT)
+    d.rounded_rectangle([fx, fy, fx + field_w, fy + 56], radius=13, fill=AMBER)
+    tb = d.textbbox((0, 0), "Giriş yap", font=f_btn)
+    draw_centered(d, W // 2, fy + (56 - (tb[3] - tb[1])) / 2 - tb[1], "Giriş yap", f_btn, (35, 28, 16))
+
+    draw_centered(d, W // 2, H - 28 - 22, "Parametral OS", f_foot, (138, 131, 120))
 
     img.convert("RGB").save(out, quality=95)
     return out
 
 
 if __name__ == "__main__":
-    boot = render_boot(os.path.join(ASSETS, "preview-boot.png"))
-    login = render_login(os.path.join(ASSETS, "preview-login.png"))
-    print(boot)
-    print(login)
+    print(render_boot(os.path.join(ASSETS, "preview-boot.png")))
+    print(render_login(os.path.join(ASSETS, "preview-login.png")))
