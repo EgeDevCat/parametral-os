@@ -230,3 +230,21 @@ pub fn paint_mark(painter: &egui::Painter, rect: Rect, colour: Color32, alpha: f
 }
 
 fn _unused(_: FontId) {}
+
+
+/// egui's defaults look like a form toolkit. One call at startup makes any window ours.
+pub fn style(ctx: &egui::Context) {
+    let mut style = (*ctx.style()).clone();
+    style.visuals.panel_fill = BG;
+    style.visuals.window_fill = BG;
+    style.visuals.extreme_bg_color = SURFACE;
+    style.visuals.override_text_color = Some(TEXT);
+    style.spacing.item_spacing = egui::vec2(GAP, GAP);
+    style.spacing.button_padding = egui::vec2(12.0, 6.0);
+    style.visuals.widgets.noninteractive.bg_stroke = hairline();
+    style.visuals.selection.bg_fill = AMBER;
+    style.visuals.selection.stroke = Stroke::new(1.0, ON_AMBER);
+    style.visuals.widgets.inactive.weak_bg_fill = CARD;
+    style.visuals.widgets.hovered.weak_bg_fill = CARD_HOVER;
+    ctx.set_style(style);
+}
