@@ -19,6 +19,14 @@ for arg in "$@"; do
   esac
 done
 
+# useradd -m writes into /home. If @home is not mounted (easy to miss when chrooting
+# by hand), /home/operator lands in the root subvolume and the greeter later fails with
+# "chdir(/home/operator) failed" -> the session dies right after authentication.
+if ! mountpoint -q /home; then
+  echo "WARN: /home is not a separate mountpoint — home directories will land in the root subvolume." >&2
+  echo "      mount @home at /home (or /mnt/home before chroot) and re-run 40-users.sh." >&2
+fi
+
 echo "==> users"
 id operator  >/dev/null 2>&1 || useradd -m -G wheel -s /bin/bash operator
 id parametral   >/dev/null 2>&1 || useradd -r -d /var/lib/parametral -s /usr/bin/nologin parametral
