@@ -609,15 +609,31 @@ What `v1.exec.run` actually does — the AI may rely on each line:
 
 | role | who | allowed |
 |---|---|---|
-| `client` | Parametral AI process | everything except `approvals.decide` |
+| `client` | Parametral AI process | everything except `approvals.decide` (includes `approvals.get`/`approvals.list`, so the client can poll its own pending approval) |
 | `approver` | human UI (desktop app / `parametral` CLI) | `approvals.*`, `audit.query`, `status` |
 | `operator` | root/sysadmin | policy file, token key, daemon lifecycle (not via API) |
 
-Role is derived from the socket peer: the daemon's own uid + a per-role `SO_PEERCRED`
-supplementary check (v1: `approver` requires the peer to be the active seat user and the
-request to carry `approver_proof` = HMAC over `approval_id|decision|nonce` with the
-approver key stored 0600 in the user's runtime dir). The AI cannot mint `approver` proof
-because it never has that key — no root needed, no ambient authority.
+**Approval attestation is Ed25519, not HMAC.** Two separate keypairs, never one:
+
+| key | lives with | used for |
+|---|---|---|
+| `approver.ed25519.sk` | the approver's own uid, mode 0600 in that user's runtime dir | signing `approval_id|decision` |
+| `approver.ed25519.pub` | `/etc/parametral/keys/`, mode 0644 | what the daemon verifies with |
+| `hard_deny.ed25519.sk` | offline / root only | signing the tier-2 rule set |
+| `hard_deny.ed25519.pub` | `/etc/parametral/keys/`, mode 0644 | what the oracle verifies with |
+
+The daemon is constructed **without** an approver secret key (`approver_sk_path=None`), so it
+cannot mint a proof — it only holds the public half. Symmetric authentication would break
+exactly this property: whatever verifies could also sign. `approver_proof` on the wire is
+the string `ed25519:<base64url(signature)>`; the nonce is not needed because the signature
+binds `approval_id` and the decision word, and an approval is single-use.
+
+HMAC appears in this system in exactly one place, and it is *not* an attestation:
+capability tokens (§5) are HMAC-SHA256 because the daemon both mints and verifies them
+(a bearer capability, single-node, TTL- and use-limited). A token says "this caller may
+do X"; it never says "a human decided Y". Anything that has to prove a *third party's*
+act must be asymmetric.
+
 
 ---
 
