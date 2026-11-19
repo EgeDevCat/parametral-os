@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import fnmatch
+import fcntl
 import hashlib
 import hmac
 import json
@@ -138,6 +139,28 @@ class TokenStore:
         used = self.used_count(payload["tid"]) + 1
         util.write_json(path, {"used": used, "exp": payload["exp"], "node_id": self.node_id})
 
+    def _consume_slot(self, payload: dict) -> None:
+        """Atomically take one use from the token's budget.
+
+        verify(consume=True) used to read the counter, compare, then write — under a threaded
+        server N concurrent callers all passed the check and all wrote, so a max_uses=1 token
+        could be spent many times. The check and the bump now happen under an exclusive
+        flock, so exactly max_uses calls succeed.
+        """
+        path = self._uses_path(payload["tid"])
+        limit = int(payload.get("max_uses", 0))
+        with open(path + ".lock", "a+") as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            try:
+                used = self.used_count(payload["tid"])
+                if used >= limit:
+                    raise TokenError("TOKEN_INVALID",
+                                     f"token uses exhausted ({used}/{limit})")
+                util.write_json(path, {"used": used + 1, "exp": payload["exp"],
+                                       "node_id": self.node_id})
+            finally:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
     @staticmethod
     def scope_allows(scope: dict, request_scope: dict) -> bool:
         """Is this request's scope inside the token's granted scope?"""
@@ -185,12 +208,13 @@ class TokenStore:
                                                                    request_scope):
                 raise TokenError("TOKEN_INVALID", "request scope is outside the token's scope")
 
-        used = self.used_count(payload["tid"])
-        if used >= int(payload.get("max_uses", 0)):
-            raise TokenError("TOKEN_INVALID", f"token uses exhausted ({used}/{payload['max_uses']})")
-
         if consume:
-            self._bump_use(payload)
+            self._consume_slot(payload)
+        else:
+            used = self.used_count(payload["tid"])
+            if used >= int(payload.get("max_uses", 0)):
+                raise TokenError("TOKEN_INVALID",
+                                 f"token uses exhausted ({used}/{payload['max_uses']})")
         return payload
 
     # -------------------------------------------------------------- maintenance

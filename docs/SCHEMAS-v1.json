@@ -1,0 +1,919 @@
+{
+  "contract": "parametral-os/tool-api",
+  "version": "1.5.0",
+  "status": "frozen-for-implementation",
+  "planned": {
+    "1.6.0": [
+      "params_digest on capability tokens (binds a token to one exact params object)",
+      "verdict checks gained {name, expected, actual, passed} (1.6 shape; 1.5.0 returns {check, ok, detail})"
+    ]
+  },
+  "transport": {
+    "kind": "jsonrpc-2.0",
+    "socket": "/run/parametral/control.sock",
+    "peer_model": "SO_PEERCRED; the daemon accepts only its own uid. Root is refused with -32010 PEER_REJECTED.",
+    "framing": "one JSON object per line, UTF-8, request/response matched by id",
+    "protocol_versions": [
+      "v1"
+    ],
+    "server_version": "0.1.0"
+  },
+  "canonical_json": {
+    "used_for": [
+      "token body signature",
+      "audit params_hash",
+      "params_digest (1.6)"
+    ],
+    "rules": {
+      "key_order": "sorted ascending by unicode code point",
+      "separators": "',' and ':' with no whitespace",
+      "ensure_ascii": false,
+      "numbers": "integers as-is; floats use Python repr — NOT RFC 8785 ECMAScript number formatting"
+    },
+    "known_deviation": "RFC 8785 requires ECMAScript Number::toString formatting. Until that lands, any client sending float parameters must send them as strings or integers, otherwise signatures can differ between implementations.",
+    "example": "{\"a\":\"ğ\",\"b\":1,\"c\":[1,2]}"
+  },
+  "envelope": {
+    "request": {
+      "jsonrpc": "\"2.0\"",
+      "id": "string|number",
+      "method": "v1.<resource>.<action>",
+      "params": {
+        "node_id": "optional; must equal the daemon node_id when present",
+        "capability_token": "optional u1 token when the policy requires one"
+      },
+      "examples_extra": "approval_id (only for operations whose policy requires approval)"
+    },
+    "response_ok": {
+      "jsonrpc": "\"2.0\"",
+      "id": "echo",
+      "result": "object"
+    },
+    "response_error": {
+      "jsonrpc": "\"2.0\"",
+      "id": "echo",
+      "error": {
+        "code": "int",
+        "message": "string",
+        "data": {
+          "parametral_code": "string"
+        }
+      }
+    }
+  },
+  "hello": {
+    "method": "v1.node.hello",
+    "request": {
+      "jsonrpc": "2.0",
+      "id": "h1",
+      "method": "v1.node.hello",
+      "params": {
+        "protocol_versions": [
+          "v1"
+        ]
+      }
+    },
+    "response": {
+      "node_id": "local",
+      "server_version": "0.1.0",
+      "protocol_versions": [
+        "v1"
+      ],
+      "selected": "v1",
+      "features": [
+        "sandbox.bwrap",
+        "seccomp.blacklist-v1",
+        "cgroup.v2",
+        "audit.chain",
+        "tokens.hmac",
+        "approvals.desktop",
+        "harddeny.oracle.v1"
+      ],
+      "policy_version": 1,
+      "started_at": "2026-11-19T18:59:08Z"
+    },
+    "notes": "Must be the first call of a session. No common version -> INVALID_PARAMS (-32602) with data.supported. protocol_versions are negotiation labels ('v1'), not semver; the implementation version is server_version.",
+    "verified_against": "live daemon, 2026-11-19 (keys and types taken from an actual v1.node.hello)"
+  },
+  "errors": [
+    {
+      "code": -32001,
+      "name": "POLICY_DENIED",
+      "data": {
+        "parametral_code": "POLICY_DENIED",
+        "rule_id": "string",
+        "operation": "string",
+        "reason": "string"
+      }
+    },
+    {
+      "code": -32002,
+      "name": "TOKEN_REQUIRED",
+      "data": {
+        "parametral_code": "TOKEN_REQUIRED"
+      }
+    },
+    {
+      "code": -32003,
+      "name": "TOKEN_INVALID",
+      "data": {
+        "parametral_code": "TOKEN_INVALID",
+        "detail": "string"
+      }
+    },
+    {
+      "code": -32004,
+      "name": "APPROVAL_REQUIRED",
+      "data": {
+        "parametral_code": "APPROVAL_REQUIRED",
+        "approval_id": "appr_*",
+        "operation": "string",
+        "expires_at": "iso8601",
+        "how": "parametral approvals approve <id>"
+      }
+    },
+    {
+      "code": -32005,
+      "name": "APPROVAL_PENDING",
+      "data": {
+        "parametral_code": "APPROVAL_PENDING",
+        "approval_id": "appr_*"
+      }
+    },
+    {
+      "code": -32006,
+      "name": "NOT_FOUND",
+      "data": {
+        "parametral_code": "NOT_FOUND",
+        "detail": "string"
+      }
+    },
+    {
+      "code": -32007,
+      "name": "LIMIT_EXCEEDED",
+      "data": {
+        "parametral_code": "LIMIT_EXCEEDED",
+        "detail": "string"
+      }
+    },
+    {
+      "code": -32008,
+      "name": "UNSUPPORTED",
+      "data": {
+        "parametral_code": "UNSUPPORTED",
+        "milestone": "string"
+      }
+    },
+    {
+      "code": -32009,
+      "name": "SANDBOX_UNAVAILABLE",
+      "data": {
+        "parametral_code": "SANDBOX_UNAVAILABLE",
+        "detail": "string"
+      }
+    },
+    {
+      "code": -32010,
+      "name": "PEER_REJECTED",
+      "data": {
+        "parametral_code": "PEER_REJECTED",
+        "detail": "string"
+      }
+    },
+    {
+      "code": -32011,
+      "name": "TOKEN_EXHAUSTED",
+      "data": {
+        "parametral_code": "TOKEN_INVALID",
+        "used": "int",
+        "max_uses": "int"
+      }
+    },
+    {
+      "code": -32012,
+      "name": "SANDBOX_TIMEOUT",
+      "data": {
+        "parametral_code": "SANDBOX_TIMEOUT",
+        "timeout_s": "int"
+      }
+    },
+    {
+      "code": -32013,
+      "name": "HARD_DENY_UNAVAILABLE",
+      "data": {
+        "parametral_code": "HARD_DENY_UNAVAILABLE",
+        "detail": "string"
+      }
+    },
+    {
+      "code": -32602,
+      "name": "INVALID_PARAMS",
+      "data": {
+        "parametral_code": "INVALID_PARAMS",
+        "field": "string"
+      }
+    }
+  ],
+  "fail_closed": {
+    "rule": "When the tier-2 oracle is unreachable, every state-changing method is refused with -32013.",
+    "exempt": [
+      "v1.node.hello",
+      "v1.node.status",
+      "v1.policy.explain",
+      "v1.audit.verify",
+      "v1.approvals.get",
+      "v1.approvals.list",
+      "v1.audit.query"
+    ]
+  },
+  "capability_token": {
+    "wire_format": "u1.<base64url(canonical_json(payload))>.<base64url(HMAC-SHA256(key, \"u1.\"+b64payload))>",
+    "payload": {
+      "v": "int",
+      "tid": "tok_*",
+      "node_id": "string",
+      "ops": "sorted list of method names",
+      "scope": {
+        "sandbox_ids": "list|*",
+        "commands": "list|*",
+        "paths": "list of prefixes"
+      },
+      "iat": "iso8601",
+      "exp": "iso8601",
+      "max_uses": "int (atomic; enforced under flock)",
+      "approval_id": "appr_*|null"
+    },
+    "binding_matrix": {
+      "method": "ops (with OP_IMPLIES expansion)",
+      "node_id": "yes",
+      "expiry": "yes",
+      "single_use": "yes — atomic under flock, exactly max_uses calls succeed",
+      "approval_id": "yes",
+      "params_digest": "NOT YET — planned for 1.6.0"
+    },
+    "issuance_rule": "If the policy requires approval, minting needs an approval_id whose state is approved, whose operation matches, and that is unexpired; the approval is consumed on use."
+  },
+  "methods": {
+    "v1.node.hello": {
+      "params": {
+        "protocol_versions": "optional list<string>, default ['v1']"
+      },
+      "response": "see hello"
+    },
+    "v1.node.status": {
+      "params": {},
+      "response": {
+        "node_id": "string",
+        "server_version": "string",
+        "uptime_s": "int",
+        "sandboxes": "list of sandbox objects",
+        "policy_version": "string",
+        "policy_path": "string",
+        "quota_backend": "cgroup2|rlimits",
+        "limits_default": {
+          "cpu_cores": "float",
+          "memory_mb": "int",
+          "disk_mb": "int",
+          "pids": "int"
+        },
+        "audit": {
+          "head_seq": "int",
+          "head_hash": "sha256:*",
+          "verified": "bool"
+        },
+        "approvals_pending": "int",
+        "harddeny": {
+          "available": "bool",
+          "rules_version": "int",
+          "rules_sig": "string",
+          "socket": "string",
+          "error": "string|null"
+        }
+      }
+    },
+    "v1.node.peers": {
+      "note": "NOT IMPLEMENTED (phase 5): returns -32008 UNSUPPORTED with data.milestone",
+      "params": {},
+      "response": {
+        "-32008": "UNSUPPORTED"
+      }
+    },
+    "v1.node.dispatch": {
+      "note": "NOT IMPLEMENTED (phase 5): returns -32008 UNSUPPORTED with data.milestone",
+      "params": {},
+      "response": {
+        "-32008": "UNSUPPORTED"
+      }
+    },
+    "v1.policy.explain": {
+      "params": {
+        "operation": "required string",
+        "scope": "optional object"
+      },
+      "response": {
+        "operation": "string",
+        "decision": "allow|deny|approve",
+        "rules": "list",
+        "requires_approval": "bool"
+      }
+    },
+    "v1.permission.request": {
+      "params": {
+        "operation": "required",
+        "justification": "required",
+        "scope": "optional",
+        "ttl_s": "optional",
+        "max_uses": "optional",
+        "approval_id": "optional",
+        "requested_by": "optional"
+      },
+      "response": {
+        "capability_token": "u1.*",
+        "payload": "token payload",
+        "approval_id": "appr_*|null"
+      },
+      "errors": [
+        -32001,
+        -32004,
+        -32005
+      ]
+    },
+    "v1.sandbox.create": {
+      "params": {
+        "name": "required string<=63",
+        "profile": "optional strict|dev",
+        "limits": "optional {cpu_cores,memory_mb,disk_mb,pids}",
+        "mounts": "optional list",
+        "env": "optional object",
+        "net": "optional bool"
+      },
+      "response": {
+        "sandbox_id": "sbx_*",
+        "name": "string",
+        "state": "string",
+        "root": "string",
+        "limits": "object",
+        "net": "bool",
+        "profile": "string",
+        "created_at": "iso8601"
+      }
+    },
+    "v1.sandbox.list": {
+      "params": {},
+      "response": {
+        "sandboxes": "list",
+        "node_id": "string"
+      }
+    },
+    "v1.sandbox.status": {
+      "params": {
+        "sandbox_id": "required"
+      },
+      "response": {
+        "sandbox_id": "string",
+        "name": "string",
+        "state": "string",
+        "profile": "string",
+        "net": "bool",
+        "execs": "int",
+        "quota": "object",
+        "usage": "object",
+        "created_at": "iso8601"
+      }
+    },
+    "v1.sandbox.destroy": {
+      "params": {
+        "sandbox_id": "required",
+        "purge": "optional bool"
+      },
+      "response": {
+        "sandbox_id": "string",
+        "destroyed": "bool",
+        "freed_bytes": "int"
+      }
+    },
+    "v1.exec.run": {
+      "params": {
+        "sandbox_id": "required",
+        "cmd": "required list<string>",
+        "cwd": "optional default /work",
+        "env": "optional object",
+        "timeout_s": "optional int",
+        "max_output_bytes": "optional int default 65536",
+        "verdict": "optional verdict object"
+      },
+      "response": {
+        "exit_code": "int",
+        "timed_out": "bool",
+        "stdout": "string",
+        "stderr": "string",
+        "duration_ms": "int",
+        "truncated": "bool",
+        "verdict": {
+          "passed": "bool",
+          "checks": [
+            {
+              "check": "string",
+              "ok": "bool",
+              "detail": "string"
+            }
+          ]
+        }
+      },
+      "verdict_spec": {
+        "expect_exit": "int|list<int>",
+        "stdout_contains": "string",
+        "stderr_contains": "string",
+        "stdout_regex": "string",
+        "file_exists": "path inside sandbox",
+        "file_sha256": "hex",
+        "unknown_keys": "INVALID_PARAMS (-32602)"
+      }
+    },
+    "v1.fs.read": {
+      "params": {
+        "sandbox_id": "required",
+        "path": "required",
+        "max_bytes": "optional"
+      },
+      "response": {
+        "path": "string",
+        "size": "int",
+        "sha256": "string",
+        "encoding": "utf-8|base64",
+        "content": "string",
+        "content_b64": "string",
+        "truncated": "bool"
+      }
+    },
+    "v1.fs.write": {
+      "params": {
+        "sandbox_id": "required",
+        "path": "required",
+        "content": "required unless content_b64",
+        "content_b64": "optional",
+        "mode": "optional octal string",
+        "create_parents": "optional bool default true"
+      },
+      "response": {
+        "path": "string",
+        "size": "int",
+        "sha256": "string",
+        "created": "bool"
+      }
+    },
+    "v1.fs.edit": {
+      "params": {
+        "sandbox_id": "required",
+        "path": "required",
+        "old": "required",
+        "new": "required",
+        "count": "optional int"
+      },
+      "response": {
+        "path": "string",
+        "replacements": "int",
+        "sha256": "string"
+      }
+    },
+    "v1.fs.list": {
+      "params": {
+        "sandbox_id": "required",
+        "path": "required",
+        "recursive": "optional bool",
+        "max_entries": "optional int"
+      },
+      "response": {
+        "entries": [
+          {
+            "name": "string",
+            "type": "file|dir|link",
+            "size": "int"
+          }
+        ],
+        "truncated": "bool"
+      }
+    },
+    "v1.fs.delete": {
+      "params": {
+        "sandbox_id": "required",
+        "path": "required",
+        "recursive": "optional bool"
+      },
+      "response": {
+        "path": "string",
+        "deleted": "bool"
+      }
+    },
+    "v1.app.install": {
+      "params": {
+        "sandbox_id": "required",
+        "manifest": "required {flake_ref, flake_lock?, name?, verify?}",
+        "attempt_limit": "optional int (<=3)",
+        "snapshot": "optional bool default true"
+      },
+      "response": {
+        "app": "string",
+        "profile": "string",
+        "generation": "int",
+        "installed_at": "iso8601",
+        "verified": "bool",
+        "attempts": "int",
+        "snapshot_id": "string"
+      }
+    },
+    "v1.app.remove": {
+      "params": {
+        "sandbox_id": "required",
+        "name": "required"
+      },
+      "response": {
+        "name": "string",
+        "removed": "bool",
+        "generation": "int"
+      }
+    },
+    "v1.app.verify": {
+      "params": {
+        "sandbox_id": "required",
+        "name": "required"
+      },
+      "response": {
+        "name": "string",
+        "ok": "bool",
+        "checks": "list"
+      }
+    },
+    "v1.snapshot.create": {
+      "params": {
+        "sandbox_id": "required",
+        "label": "optional <=120",
+        "reason": "optional"
+      },
+      "response": {
+        "snapshot_id": "snap_*",
+        "sandbox_id": "string",
+        "label": "string",
+        "created_at": "iso8601"
+      }
+    },
+    "v1.snapshot.list": {
+      "params": {
+        "sandbox_id": "required"
+      },
+      "response": {
+        "snapshots": "list"
+      }
+    },
+    "v1.snapshot.restore": {
+      "params": {
+        "sandbox_id": "required",
+        "snapshot_id": "required",
+        "confirm": "required bool"
+      },
+      "response": {
+        "sandbox_id": "string",
+        "snapshot_id": "string",
+        "restored": "bool"
+      }
+    },
+    "v1.net.open": {
+      "params": {
+        "sandbox_id": "required",
+        "hosts": "required list<{host,port}>",
+        "ttl_s": "optional <=3600"
+      },
+      "response": {
+        "grant_id": "gr_*",
+        "sandbox_id": "string",
+        "hosts": "list",
+        "expires_at": "iso8601",
+        "proxy_socket": "string"
+      }
+    },
+    "v1.net.close": {
+      "params": {
+        "grant_id": "required"
+      },
+      "response": {
+        "grant_id": "string",
+        "closed": "bool"
+      }
+    },
+    "v1.net.list": {
+      "params": {
+        "sandbox_id": "required"
+      },
+      "response": {
+        "grants": "list",
+        "sweep_hint": "string"
+      }
+    },
+    "v1.host.apply": {
+      "params": {
+        "job_id": "required",
+        "wait_s": "optional"
+      },
+      "response": {
+        "job_id": "string",
+        "state": "pending|signed|applied|failed",
+        "result": "object"
+      }
+    },
+    "v1.host.nix_profile": {
+      "params": {
+        "action": "optional",
+        "packages": "optional list"
+      },
+      "response": {
+        "note": "contract-only; returns -32008 UNSUPPORTED with data.milestone until phase 2"
+      }
+    },
+    "v1.approvals.list": {
+      "params": {
+        "state": "optional pending|approved|rejected|deferred|expired",
+        "limit": "optional int default 50"
+      },
+      "response": {
+        "approvals": "list"
+      }
+    },
+    "v1.approvals.get": {
+      "params": {
+        "approval_id": "required",
+        "wait_s": "optional float, capped by policy.approval_wait_s (120)"
+      },
+      "response": {
+        "approval_id": "string",
+        "operation": "string",
+        "scope": "object",
+        "state": "pending|approved|rejected|deferred|expired",
+        "requested_by": "string",
+        "justification": "string",
+        "expires_at": "iso8601",
+        "decided_at": "iso8601|null",
+        "decided_by": "string|null",
+        "reason": "string|null",
+        "waited_s": "float"
+      }
+    },
+    "v1.approvals.decide": {
+      "params": {
+        "approval_id": "required",
+        "decision": "required approve|reject|defer",
+        "approver_proof": "required ed25519:<base64url>",
+        "decided_by": "optional",
+        "reason": "optional"
+      },
+      "response": {
+        "approval_id": "string",
+        "state": "approved|rejected|deferred",
+        "decided_at": "iso8601"
+      },
+      "errors": [
+        -32010
+      ]
+    },
+    "v1.audit.verify": {
+      "params": {},
+      "response": {
+        "verified": "bool",
+        "head_seq": "int",
+        "head_hash": "sha256:*",
+        "first_broken_seq": "int|null",
+        "reason": "string|null"
+      }
+    },
+    "v1.audit.query": {
+      "params": {
+        "from_seq": "optional int",
+        "limit": "optional int",
+        "method": "optional string"
+      },
+      "response": {
+        "records": [
+          {
+            "seq": "int",
+            "ts": "iso8601",
+            "method": "string",
+            "actor": "string",
+            "params_hash": "sha256:*",
+            "outcome": "ok|error",
+            "prev_hash": "sha256:*",
+            "hash": "sha256:*"
+          }
+        ]
+      }
+    },
+    "v1.snapshot.replicate": {
+      "note": "NOT IMPLEMENTED (phase 5): returns -32008 UNSUPPORTED with data.milestone",
+      "params": {},
+      "response": {
+        "-32008": "UNSUPPORTED"
+      }
+    }
+  },
+  "traces": {
+    "approval_pending_to_approved": [
+      {
+        "dir": "client->daemon",
+        "request": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "v1.permission.request",
+          "params": {
+            "operation": "host.apply",
+            "justification": "install ripgrep",
+            "scope": {
+              "preset": "install-package"
+            }
+          }
+        }
+      },
+      {
+        "dir": "daemon->client",
+        "error": {
+          "code": -32004,
+          "message": "operation needs human approval",
+          "data": {
+            "parametral_code": "APPROVAL_REQUIRED",
+            "approval_id": "appr_7f3c1a",
+            "expires_at": "2026-11-19T22:15:00+03:00"
+          }
+        }
+      },
+      {
+        "dir": "client->daemon",
+        "request": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "v1.approvals.get",
+          "params": {
+            "approval_id": "appr_7f3c1a",
+            "wait_s": 60
+          }
+        }
+      },
+      {
+        "dir": "approver (human UI)",
+        "note": "signs ed25519 over 'appr_7f3c1a|approved' with the approver secret key and calls approvals.decide"
+      },
+      {
+        "dir": "daemon->client",
+        "result": {
+          "approval_id": "appr_7f3c1a",
+          "state": "approved",
+          "decided_at": "2026-11-19T21:16:04+03:00",
+          "waited_s": 3.4,
+          "reason": null
+        }
+      },
+      {
+        "dir": "client->daemon",
+        "request": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "v1.permission.request",
+          "params": {
+            "operation": "host.apply",
+            "justification": "install ripgrep",
+            "approval_id": "appr_7f3c1a"
+          }
+        }
+      },
+      {
+        "dir": "daemon->client",
+        "result": {
+          "capability_token": "u1.eyJ2Ijox...",
+          "approval_id": "appr_7f3c1a"
+        }
+      }
+    ],
+    "sandbox_exec_with_verdict": [
+      {
+        "dir": "client->daemon",
+        "request": {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "v1.sandbox.create",
+          "params": {
+            "name": "build-1"
+          }
+        }
+      },
+      {
+        "dir": "daemon->client",
+        "result": {
+          "sandbox_id": "sbx_1a2b",
+          "name": "build-1",
+          "state": "ready",
+          "root": "/var/lib/parametral/sandboxes/sbx_1a2b"
+        }
+      },
+      {
+        "dir": "client->daemon",
+        "request": {
+          "jsonrpc": "2.0",
+          "id": 2,
+          "method": "v1.fs.write",
+          "params": {
+            "sandbox_id": "sbx_1a2b",
+            "path": "main.py",
+            "content": "print('hi')\n"
+          }
+        }
+      },
+      {
+        "dir": "client->daemon",
+        "request": {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "v1.exec.run",
+          "params": {
+            "sandbox_id": "sbx_1a2b",
+            "cmd": [
+              "python3",
+              "main.py"
+            ],
+            "timeout_s": 30,
+            "verdict": {
+              "expect_exit": 0,
+              "stdout_contains": "hi"
+            }
+          }
+        }
+      },
+      {
+        "dir": "daemon->client",
+        "result": {
+          "exit_code": 0,
+          "stdout": "hi\n",
+          "stderr": "",
+          "duration_ms": 41,
+          "timed_out": false,
+          "verdict": {
+            "passed": true,
+            "checks": [
+              {
+                "check": "expect_exit",
+                "ok": true,
+                "detail": "exit=0 want=[0]"
+              },
+              {
+                "check": "stdout_contains",
+                "ok": true,
+                "detail": "'hi' in stdout"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "open_items": [
+    "params CONTENT in the trace store (F0 needs params, not only params_hash): trace store schema is the next joint decision.",
+    "verdict checks[] field names will become {name, expected, actual, passed} in 1.6.0.",
+    "exec.run: timeout already kills the process group; a timed-out run returns timed_out=true and a failed verdict — explicit -32012 is only used when the sandbox itself cannot start.",
+    "nix: at least one real build (not a substitute) from inside a sandbox via the daemon socket; flake_lock mandatory for AI-driven installs.",
+    "netproxy: SNI/Host verification, IP-literal blocking, grant_expired audit event.",
+    "audit off-host anchor: minimal daily signed head_hash, not waiting for phase 5.",
+    "deferred semantics, token revocation, exp defaults, clock skew policy."
+  ],
+  "implemented": [
+    "v1.app.install",
+    "v1.app.remove",
+    "v1.app.verify",
+    "v1.approvals.decide",
+    "v1.approvals.get",
+    "v1.approvals.list",
+    "v1.audit.query",
+    "v1.audit.verify",
+    "v1.exec.run",
+    "v1.fs.delete",
+    "v1.fs.edit",
+    "v1.fs.list",
+    "v1.fs.read",
+    "v1.fs.write",
+    "v1.host.apply",
+    "v1.host.nix_profile",
+    "v1.net.close",
+    "v1.net.list",
+    "v1.net.open",
+    "v1.node.hello",
+    "v1.node.status",
+    "v1.permission.request",
+    "v1.policy.explain",
+    "v1.sandbox.create",
+    "v1.sandbox.destroy",
+    "v1.sandbox.list",
+    "v1.sandbox.status",
+    "v1.snapshot.create",
+    "v1.snapshot.list",
+    "v1.snapshot.restore"
+  ],
+  "not_implemented": [
+    "v1.node.dispatch",
+    "v1.node.peers",
+    "v1.snapshot.replicate"
+  ]
+}
