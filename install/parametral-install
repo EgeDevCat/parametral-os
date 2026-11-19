@@ -129,6 +129,14 @@ def run_step(title, script, args=(), env=None):
     return True
 
 
+
+def shell_ready() -> bool:
+    """Is the Parametral shell actually in this image?"""
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.isdir(os.path.join(here, "..", "shell"))
+
+
+
 def main():
     if os.geteuid() != 0:
         print(f"{RED}Root olarak çalıştır.{OFF}")
@@ -164,6 +172,14 @@ def main():
     ])
     appearance = "light" if appearance == 1 else "dark"
 
+    desktop = menu("Masaüstü ortamı", [
+        "Parametral — kendi panelimiz, dock'umuz, onay penceremiz (geliştiriliyor)",
+        "KDE Plasma — tanıdık, tam donanımlı, bizim temamızla",
+    ])
+    desktop = "parametral" if desktop == 0 else "kde"
+    if desktop == "parametral" and not shell_ready():
+        print(f"  {RED}Parametral masaüstü bu imajda henüz yok — KDE kurulacak, sonra geçebilirsin.{OFF}")
+
     header("Kurulum · 4/5 — Parola")
     print(f"{DIM}Bu parola hem {username} hem disk şifrelemesi için kullanılacak.{OFF}")
     password = ask_secret("Parola")
@@ -174,7 +190,7 @@ def main():
     print(f"  bilgisayar  : {BOLD}{hostname}{OFF}")
     print(f"  kullanıcı   : {BOLD}{username}{OFF}")
     print(f"  görünüm     : {BOLD}{'Parametral açık' if appearance == 'light' else 'Parametral koyu'}{OFF}")
-    print(f"  masaüstü    : KDE Plasma (Parametral teması)")
+    print(f"  masaüstü    : {BOLD}{'Parametral Shell' if desktop == 'parametral' else 'KDE Plasma'}{OFF}")
     print()
     print(f"{RED}{BOLD}UYARI:{OFF} {target} üzerindeki TÜM veriler silinecek.")
     if ask("Onaylamak için YES yaz", "hayır").upper() != "YES":
@@ -187,6 +203,7 @@ def main():
         "PARAMETRAL_PASSWORD": password,
         "PARAMETRAL_LUKS": luks,
         "PARAMETRAL_APPEARANCE": appearance,
+        "PARAMETRAL_DESKTOP": desktop,
     }
 
     steps = [

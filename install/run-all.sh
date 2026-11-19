@@ -15,6 +15,18 @@ echo "=== 35 nix (package manager)"
 bash "$SRC/install/35-nix.sh"
 echo "=== 76 xdg defaults (theme, cursor, fonts)"
 bash "$SRC/install/76-xdg-defaults.sh"
+# Desktop session: KDE is what ships today; the Parametral shell is installed on top when the
+# payload carries it and the installer asked for it. Never pretend: silence would mean the
+# user thinks they booted our shell while they are on Plasma.
+if [ "${PARAMETRAL_DESKTOP:-kde}" = "parametral" ]; then
+  if [ -d "$SRC/shell" ] && [ -x "$SRC/install/79-shell.sh" ]; then
+    echo "=== 79 parametral shell"
+    bash "$SRC/install/79-shell.sh"
+  else
+    echo "=== parametral shell: not in this payload — keeping KDE (asked for by installer)"
+  fi
+fi
+
 echo "=== 78 ai (hesap + onay penceresi)"
 bash "$SRC/install/78-ai.sh"
 echo "=== payload into the installed system"
