@@ -11,7 +11,7 @@
 <p><b>An Arch + Nix system an AI can operate — but never own.</b></p>
 
 <p>
-  <img alt="tests" src="https://img.shields.io/badge/tests-148%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-161%20passing-brightgreen">
   <img alt="api" src="https://img.shields.io/badge/api-v1.2-blue">
   <img alt="sandbox" src="https://img.shields.io/badge/sandbox-bwrap%20%2B%20seccomp%20%2B%20cgroup%20v2-informational">
   <img alt="platform" src="https://img.shields.io/badge/platform-Arch%20%2B%20Nix-1793d1">
@@ -38,7 +38,7 @@ allowed to run `rm -rf` on your machine — and it answers "no" from a place the
 | AI changes the real system | Tier 1: approval + snapshot, closed preset list | presets validated and tested; executor is phase 2 |
 | catastrophic command | Tier 2: deterministic refusal | implemented, Ed25519-signed, fail-closed |
 | rollback | one command | sandbox snapshots/restore work (btrfs, unprivileged); host-level needs the root helper |
-| distribution image | bootable Arch + Nix ISO | not built yet (roadmap A1–A4) |
+| distribution image | bootable Arch + Nix ISO | install kit ready (`install/`, UEFI+LUKS+btrfs, both kernels, snapshot hooks); ISO build is roadmap A1 |
 
 ## Phase status
 
@@ -76,7 +76,9 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 | `src/ultraos_guard.c` | in-sandbox seccomp + rlimit guard (compiled to `bin/seccomp_guard`) |
 | `policy/policy.v1.json` | allow/approval rules, default deny |
 | `policy/hard_deny.v1.json` + `.sig` + `.v1.pub` | tier-2 list, Ed25519-signed |
-| `tests/` | 148 unittest cases, no third-party deps |
+| `tests/` | 161 unittest cases, no third-party deps |
+| `install/` | Arch install kit: disk+LUKS, users, snapshots, boot, `70-verify.sh` evidence |
+| `src/tools/parametral-snapshot` | create / list / boot-entry / promote / prune rollback tool |
 | `assets/` | mark: delivered raster (transparent) for dark, flat vector for light |
 | `proofs/isolation-proof.txt` | generated isolation evidence (20+ checks) |
 
@@ -85,7 +87,7 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 ```fish
 cd ~/Desktop/Development/ultra-si-os
 make guard                 # static seccomp guard
-make test                  # 148 tests, expect "OK"
+make test                  # 161 tests, expect "OK"
 make proof                 # writes proofs/isolation-proof.txt, expect "RESULT: PASS"
 bash scripts/smoke.sh      # two real processes, real sockets, expect "SMOKE OK"
 ```

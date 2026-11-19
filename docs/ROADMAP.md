@@ -52,8 +52,8 @@ adı olarak kalıyor (her yerde yeniden adlandırma churn'ü yok, marka sonra ot
 
 | # | iş | "bitti" kanıtı |
 |---|---|---|
-| A1 | Minimal Arch: btrfs kök, `@`/`@home`/`@var`, systemd-boot, **`linux` + `linux-lts` yedek**, LUKS açık | ISO boot; `findmnt /` btrfs; snapshot al→geri dön; LUKS şifreli açılış |
-| A2 | Kullanıcılar: `operator` (wheel), `ultraos` (gateway+oracle), `ai` (hiçbir grupta değil), `approver`. `/etc/ultraos` root:root 0755; `keys/` **0700**; `*.pub` 0644, `*.sk` **0600** | `sudo -u ai cat /etc/ultraos/keys/hard_deny.ed25519.sk` → **Permission denied**; `.pub` okunur |
+| A1 | Minimal Arch: btrfs kök, `@`/`@home`/`@var`, systemd-boot, **`linux` + `linux-lts` yedek**, LUKS açık → `install/` kiti hazır | ISO boot; `findmnt /` btrfs; snapshot al→geri dön; LUKS şifreli açılış |
+| A2 | Kullanıcılar (kit: `install/40-users.sh`): `operator` (wheel), `ultraos` (gateway+oracle), `ai` (hiçbir grupta değil), `approver`. `/etc/ultraos` root:root 0755; `keys/` **0700**; `*.pub` 0644, `*.sk` **0600** | `sudo -u ai cat /etc/ultraos/keys/hard_deny.ed25519.sk` → **Permission denied**; `.pub` okunur |
 | A3 | `harddenyd.service`, `ultraosd.service` (`User=ultraos`, `ProtectSystem=strict`, `ReadOnlyPaths=/etc/ultraos`, `NoNewPrivileges=yes`), **`nix-daemon.service`**; `/etc/nix/nix.conf`: `require-sigs = true`, `sandbox = true`, `trusted-users = root ultraos`, `allowed-users = @users` (`ai` trusted değil, kendi substituter'ını ekleyemez) | `ultraos status` → `available:true`; `ai` olarak `nix profile list` çalışır; `ai` `nix config` ile substituter değiştiremez |
 | A4 | İlk açılışta boş policy + imzalı `hard_deny.v1.json`; public key imajda, private key offline | `ultraos harddeny verify` → `verified:true` |
 | A5 | İlk açılış **kapasite sondajı** (RAM/CPU/disk/TPM) → kurulum profili: tam / kısmi (F1 uzman sayısı ve sandbox limitleri buna göre) | düşük RAM'li VM'de kısmi profil; rapor `/var/log/parametral/firstboot.json` |

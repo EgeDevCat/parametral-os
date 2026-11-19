@@ -1,0 +1,37 @@
+[Unit]
+Description=Parametral OS tier-2 hard-deny oracle
+Documentation=file:///usr/share/doc/parametral/ARCHITECTURE.md
+After=local-fs.target
+Before=ultraosd.service
+ConditionPathExists=/etc/ultraos/policy/hard_deny.v1.json
+
+[Service]
+Type=simple
+User=ultraos
+Group=ultraos
+RuntimeDirectory=parametral
+RuntimeDirectoryMode=0700
+ExecStart=/usr/local/bin/harddenyd \
+    --rules /etc/ultraos/policy/hard_deny.v1.json \
+    --pub /etc/ultraos/keys/hard_deny.v1.pub \
+    --socket /run/parametral/harddeny.sock
+Restart=on-failure
+RestartSec=2s
+# The oracle must never be able to rewrite what it enforces.
+ReadOnlyPaths=/etc/ultraos /usr/local/bin
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target
