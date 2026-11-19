@@ -18,7 +18,7 @@ import threading
 import time
 import traceback
 
-from . import appinstall, hostapply, util
+from . import appinstall, hostapply, sysapply, util
 from .approvals import ApprovalError, ApprovalStore, desktop_notifier
 from .audit import AuditLog
 from .harddeny import HardDenyClient, HardDenyUnavailable
@@ -118,7 +118,7 @@ class UltraOsDaemon:
                                  ttl_cap_s=int(self.policy.limit("max_token_ttl_s", 1800)),
                                  default_max_uses=int(self.policy.limit("default_token_max_uses", 25)))
         self.approvals = ApprovalStore(self.state_dir,
-                                       os.path.join(util.runtime_dir(), "approver.key"),
+                                       os.path.join(util.runtime_dir(), "approver.pub"),
                                        node_id,
                                        ttl_s=int(self.policy.limit("approval_ttl_s", 900)),
                                        notifier=notifier if notifier is not None else desktop_notifier())
@@ -128,6 +128,10 @@ class UltraOsDaemon:
             "pids": 128,
             "disk_mb": 256,
         })
+        self.job_queue = sysapply.JobQueue(
+            os.environ.get("ULTRAOS_JOB_SPOOL", os.path.join(util.runtime_dir(), "jobs")),
+            os.environ.get("ULTRAOS_JOB_RESULTS", os.path.join(util.runtime_dir(), "results")),
+            node_id)
         self.installer = appinstall.Installer(
             self.sandboxes,
             nix_bin=os.environ.get("ULTRAOS_NIX_BIN", "nix"),
@@ -832,18 +836,33 @@ class UltraOsDaemon:
             raise RpcError(-32602, str(exc), {"ultraos_code": exc.code, **exc.detail}) from exc
 
     def _host_apply(self, params: dict, _token) -> dict:
-        """Tier-1: validate against the closed operation set, then refuse until phase 2.
+        """Tier-1: queue a signed job for sysapply.
 
-        Validation runs now on purpose: it proves the surface is a reviewed preset list
-        and not a generic "run this argv as root" primitive.
+        The gateway can only *ask*: the exact argv is signed by the approver, verified
+        and executed by root. Nothing here runs as root, and an unsigned job never runs.
         """
+        job_id = params.get("job_id")
+        if job_id is not None:
+            job_id = _require_id(params, "job_id")
+            result = self.job_queue.result(job_id)
+            if result is None:
+                raise RpcError(-32005, "job is still waiting for the approver's signature", {
+                    "ultraos_code": "APPROVAL_PENDING", "job_id": job_id,
+                    "how": f"ultraos host sign {job_id}"})
+            return result
         try:
-            hostapply.validate(params)
+            payload = self.job_queue.submit(params)
         except hostapply.HostApplyError as exc:
             code = -32004 if exc.code == "APPROVAL_REQUIRED" else -32602
             raise RpcError(code, str(exc), {"ultraos_code": exc.code}) from exc
-        raise _unsupported("host.apply is validated by the contract but its executor lands "
-                           "in phase 2; nothing was executed", "phase-2")
+        result = self.job_queue.wait(payload["job_id"],
+                                     timeout_s=float(params.get("wait_s", 3)))
+        if result is not None:
+            return result
+        raise RpcError(-32005, "change queued: the approver must sign this exact job", {
+            "ultraos_code": "APPROVAL_PENDING", "job_id": payload["job_id"],
+            "steps": [step["kind"] for step in payload["steps"]],
+            "how": f"ultraos host sign {payload['job_id']}"})
 
     def _host_nix_profile(self, params: dict, _token) -> dict:
         """Tier-0: rootless, generation-based. Validated now, executed in phase 2."""

@@ -236,7 +236,7 @@ class DaemonAppInstallTest(unittest.TestCase):
         with self.assertRaises(ClientError) as raised:
             self.client.request_permission(operation, {"sandbox_id": self.sid}, "install greet")
         approval_id = raised.exception.data["approval_id"]
-        store = ApprovalStore(self.harness.state, self.harness.approver_key_path)
+        store = self.harness.approver_store()
         proof = store.proof(approval_id, "approved")
         self.client.call("v1.approvals.decide", approval_id=approval_id, decision="approve",
                          approver_proof=proof, decided_by="user:test")

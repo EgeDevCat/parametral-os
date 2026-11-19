@@ -33,7 +33,13 @@ class Harness:
         from ultraos import harddeny as hd
         from ultraos import util
 
-        self.approver_key_path = os.path.join(util.runtime_dir(), "approver.key")
+        from ultraos import ed25519 as _ed
+
+        self.approver_pub_path = os.path.join(util.runtime_dir(), "approver.pub")
+        self.approver_sk_path = os.path.join(util.runtime_dir(), "approver.sk")
+        util.ensure_dir(util.runtime_dir(), 0o700)
+        _ed.keygen(self.approver_sk_path, self.approver_pub_path)
+        self.approver_key_path = self.approver_pub_path  # legacy alias
 
         # Tier-2 oracle: signed copy of the repo rules, signed with a throwaway key.
         self.harddeny_socket = os.path.join(self.tmp, "harddeny.sock")
@@ -65,6 +71,13 @@ class Harness:
             if os.path.exists(self.socket_path):
                 break
             time.sleep(0.01)
+
+    def approver_store(self):
+        """Approver-side store: holds the private key, used by tests to sign decisions."""
+        from ultraos.approvals import ApprovalStore
+
+        return ApprovalStore(self.state, self.approver_pub_path,
+                             approver_sk_path=self.approver_sk_path)
 
     def client(self):
         from ultraos.client import Client

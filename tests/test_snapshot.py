@@ -142,7 +142,7 @@ class DaemonSnapshotTest(unittest.TestCase):
         approval_id = raised.exception.data["approval_id"]
         from ultraos.approvals import ApprovalStore
 
-        store = ApprovalStore(self.harness.state, self.harness.approver_key_path)
+        store = self.harness.approver_store()
         proof = store.proof(approval_id, "approved")
         self.client.call("v1.approvals.decide", approval_id=approval_id, decision="approve",
                          approver_proof=proof, decided_by="user:test")
@@ -165,8 +165,7 @@ class DaemonSnapshotTest(unittest.TestCase):
             approval_id = exc.data["approval_id"]
         from ultraos.approvals import ApprovalStore
 
-        proof = ApprovalStore(self.harness.state,
-                              self.harness.approver_key_path).proof(approval_id, "approved")
+        proof = self.harness.approver_store().proof(approval_id, "approved")
         self.client.call("v1.approvals.decide", approval_id=approval_id, decision="approve",
                          approver_proof=proof, decided_by="user:test")
         granted = self.client.request_permission("snapshot.restore", {"sandbox_id": self.sid},

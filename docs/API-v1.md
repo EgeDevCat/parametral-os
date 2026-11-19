@@ -1,6 +1,6 @@
 # Ultra SI OS — Tool API, **v1**
 
-Status: **FROZEN (v1.3.0)** — 2026-11-19  (v1.0.0 + host-tier methods; 1.1.1 pinned Ed25519 and the closed tier-1 presets; 1.2.0 implemented `snapshot.*`; 1.3.0 implements `app.*`; see §11)
+Status: **FROZEN (v1.4.0)** — 2026-11-19  (v1.0.0 + host-tier methods; 1.1.1 pinned Ed25519 and the closed tier-1 presets; 1.2.0 implemented `snapshot.*`; 1.3.0 `app.*`; 1.4.0 implements `host.apply` as a signed-job pipeline; see §11)
 Owner of this document: OS-layer team (this repo). Consumer: Ultra SI local AI (Berkay).
 Change control: additive only, see §11.
 
@@ -205,7 +205,7 @@ A token whose `exp` is in the past is rejected even if its signature is valid.
 | `v1.audit.query` | `audit.read` | implemented |
 | `v1.audit.verify` | — | implemented |
 | `v1.host.nix_profile` | `host.nix_profile` | contract frozen, `-32008` (phase 2) |
-| `v1.host.apply` | `host.apply` | contract frozen, `-32008` (phase 2) |
+| `v1.host.apply` | `host.apply` | implemented (signed job → sysapply as root) |
 | `v1.node.peers` | — | reserved, `-32008` (phase 5) |
 | `v1.node.dispatch` | — | reserved, `-32008` (phase 5) |
 | `v1.snapshot.replicate` | — | reserved, `-32008` (phase 5) |
@@ -480,38 +480,56 @@ Token: `audit.read` for query; `verify` needs none (read-only integrity check).
 
 ---
 
-### 5.14 Host layers — `host.nix_profile` (tier 0) and `host.apply` (tier 1)
-**Milestone phase 2** — contract fixed now, daemon answers `-32008` until implemented.
+### 5.14 Host layers — `host.apply` (tier 1) and `host.nix_profile` (tier 0)
+
+`host.apply` is **implemented** as a signed-job pipeline. `host.nix_profile` is still
+contract-only (`-32008`, milestone `phase-2b`).
+
+**Why a job and a signature:** the gateway runs as the service user and cannot sign. The exact
+argv an approval covers is signed by the approver, then verified and executed by `sysapply`
+(root). An unsigned job never runs, and "approved" plus "these argv" cannot drift apart.
 
 ```json
-// v1.host.nix_profile  (tier 0: rootless, generation-based, no approval)
-{"node_id":"local","action":"install","packages":["nixpkgs#ripgrep"],"profile":"default"}
-→ {"generation":42,"previous_generation":41,"rollback_cmd":["nix-env","--rollback"],
-   "paths":["/home/user/.nix-profile/bin/rg"],"verify":{"exit_code":0}}
-
-// v1.host.apply  (tier 1: real system write → approval + snapshot first)
+// 1) ask for the change (approval-gated token required)
 {"node_id":"local","intent":"install system package ripgrep",
  "steps":[{"kind":"pacman","argv":["pacman","-S","--noconfirm","ripgrep"]}],
- "snapshot":true,"approval_id":"apr_…"}
-→ {"applied":true,"snapshot_id":"snap_…","steps":[{"exit_code":0,"duration_ms":9100}],
-   "rollback":{"snapshot":"snap_…","cmd":["ultraos","snapshot","restore","snap_…"]},
-   "verify":{"passed":true,"exit_code":0}}
+ "snapshot":true,"approval_id":"apr_…","wait_s":3}
+
+// 2) queued → approver signs the exact payload
+//    → {"error":{"code":-32005,"data":{"ultraos_code":"APPROVAL_PENDING",
+//         "job_id":"job_ab12…","how":"ultraos host sign job_ab12…"}}}
+
+// 3) collect the result
+{"node_id":"local","job_id":"job_ab12…"}
+→ {"job_id":"job_ab12…","state":"applied","approved_by":"ed25519:…",
+   "snapshot_id":"snap_…","intent":"install system package ripgrep",
+   "steps":[{"kind":"pacman-install","argv":[…],"exit_code":0,"duration_ms":9100,
+             "stdout_tail":"…","stderr_tail":""}],
+   "finished_at":"2026-11-19T…Z"}
 ```
 
-Rules the daemon enforces (not suggestions). The tier-1 surface is a **closed set of reviewed
-operations**, never a generic "run this argv as root": `pacman -S/-Syu/-Rns --noconfirm`,
-`nix profile install|remove`, `home-manager switch`, `systemctl enable|disable|start|stop|restart`.
-Interpreters (`sh`, `bash`, `env`, `sudo`, `xargs`), absolute paths, shell metacharacters, unlisted
-flags and arbitrary unit names are refused before anything runs — an approved change cannot hide a
-root shell. The rule list is Ed25519-signed and the oracle verifies with the public key only, so
-even a compromised daemon uid cannot re-sign a weakened list; the list and its signature are also
-watched at runtime and any change shuts the oracle down.
+Job payload (canonical JSON, that byte string is what gets signed):
 
-- `host.nix_profile` never needs approval (rootless + `nix-env --rollback`), but is still
-  audited and still token-gated so the AI cannot act invisibly.
-- `host.apply` **always** requires an approval id, **always** takes a pre-change snapshot,
-  and is refused if the snapshot fails — no snapshot, no change.
-- Both go through the tier-2 oracle first: `pacman -Syu` is fine, disk tools are not.
+```json
+{"job_id":"job_…","node_id":"local","created_at":"…","approval_id":"apr_…",
+ "intent":"…","snapshot":true,
+ "steps":[{"kind":"pacman-install","argv":["pacman","-S","--noconfirm","ripgrep"]}]}
+```
+
+Rules enforced by `sysapply` before anything runs:
+
+1. signature verifies against the **approver public key** (`/etc/ultraos/keys/approver.pub`);
+   the gateway holds no key that can produce it;
+2. `payload_sha256` in the signature record matches the payload (hand-edited jobs are refused);
+3. the payload re-validates against the closed preset list (`hostapply`): no interpreters, no
+   absolute paths, no metacharacters, no unlisted flags;
+4. a pre-change snapshot must succeed — no snapshot, no change;
+5. steps run one by one with a fixed environment, `shell=False`, and a timeout; the result
+   records `state` (`applied` / `failed` / `rejected`), per-step exit codes and output tails.
+
+Failure semantics: `state:"rejected"` means nothing ran (`SIGNATURE_INVALID`,
+`SNAPSHOT_FAILED`, validation error); `state:"failed"` means a step ran and returned non-zero —
+the remaining steps are not executed and the snapshot id is returned for rollback.
 
 ## 6. Sandbox execution profile (normative)
 
@@ -615,10 +633,10 @@ Every request that changed state, every denied request, and every approval write
 3. Clients MUST ignore unknown result fields and unknown `data` fields.
 4. Servers MUST ignore unknown params fields (except where documented as validated).
 5. `features[]` from `v1.node.hello` is the negotiation channel for optional behavior.
-6. This document is semantic-versioned: doc `1.3.0` ↔ `v1` wire (1.1.0 added the `host.*`
+6. This document is semantic-versioned: doc `1.4.0` ↔ `v1` wire (1.1.0 added the `host.*`
    methods and the oracle stage; 1.1.1 pinned Ed25519 signatures, the closed tier-1 preset list
-   and the runtime rule-file watch; 1.2.0 implemented `snapshot.*`; 1.3.0 implements `app.*`
-   with the manifest v1 schema above. No existing signature has ever changed.) Any doc change bumps the
+   and the runtime rule-file watch; 1.2.0 implemented `snapshot.*`; 1.3.0 `app.*`; 1.4.0
+   implements `host.apply` with approver-signed jobs. No existing signature has ever changed.) Any doc change bumps the
    patch and lands with a test in `tests/test_api_contract.py`.
 
 ---

@@ -11,7 +11,7 @@
 <p><b>An Arch + Nix system an AI can operate — but never own.</b></p>
 
 <p>
-  <img alt="tests" src="https://img.shields.io/badge/tests-161%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-171%20passing-brightgreen">
   <img alt="api" src="https://img.shields.io/badge/api-v1.2-blue">
   <img alt="sandbox" src="https://img.shields.io/badge/sandbox-bwrap%20%2B%20seccomp%20%2B%20cgroup%20v2-informational">
   <img alt="platform" src="https://img.shields.io/badge/platform-Arch%20%2B%20Nix-1793d1">
@@ -35,7 +35,7 @@ allowed to run `rm -rf` on your machine — and it answers "no" from a place the
 | | target | today |
 |---|---|---|
 | AI installs an app | Tier 0: sandboxed, no human | pipeline implemented: Nix install → verify → ≤3 attempts → honest report; nix CLI stubbed in tests (real nix lands with the Arch image) |
-| AI changes the real system | Tier 1: approval + snapshot, closed preset list | presets validated and tested; executor is phase 2 |
+| AI changes the real system | Tier 1: approval + snapshot, closed preset list | implemented: approver-signed job → `sysapply` (root); tested with a stubbed pacman |
 | catastrophic command | Tier 2: deterministic refusal | implemented, Ed25519-signed, fail-closed |
 | rollback | one command | sandbox snapshots/restore work (btrfs, unprivileged); host-level needs the root helper |
 | distribution image | bootable Arch + Nix ISO | install kit ready (`install/`, UEFI+LUKS+btrfs, both kernels, snapshot hooks); ISO build is roadmap A1 |
@@ -45,7 +45,7 @@ allowed to run `rm -rf` on your machine — and it answers "no" from a place the
 | phase | contents | state |
 |---|---|---|
 | 1 | API v1.2, policy engine, tokens, approvals, audit chain, bwrap sandbox, exec/fs, tier-2 oracle, snapshots, `app.install` pipeline, CLI | **done** — 148 tests, isolation proof |
-| 2 | `host.nix_profile` + `host.apply` executors (snapshot-first), artifact installs, real-nix integration on the Arch image | next |
+| 2 | `app.install` + `host.apply` — **done**; `host.nix_profile` executor, artifact installs, real-nix run on the Arch image remain | in progress |
 | 3 | btrfs qgroup disk quota per sandbox, streaming output limits | planned |
 | 4 | host-level snapshots via root helper, off-host audit anchor | planned |
 | 5 | microVM profile (`profile:"microvm"`), multi-node (methods reserved, no swarm code) | reserved |
@@ -72,11 +72,11 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 | `docs/API-v1.md` | the wire contract, frozen v1.2.0 — the AI codes against this |
 | `docs/ARCHITECTURE.md` | three layers, three tiers, trust boundaries, honest limitations |
 | `docs/ROADMAP.md` | three-actor plan v0.3: Arch base / AI / this layer / OS mind |
-| `src/ultraos/` | gateway, policy, tokens, approvals, audit, sandbox, oracle, `appinstall`, tier-1 validator |
+| `src/ultraos/` | gateway, policy, tokens, approvals, audit, sandbox, oracle, `appinstall`, `sysapply`, tier-1 validator |
 | `src/ultraos_guard.c` | in-sandbox seccomp + rlimit guard (compiled to `bin/seccomp_guard`) |
 | `policy/policy.v1.json` | allow/approval rules, default deny |
 | `policy/hard_deny.v1.json` + `.sig` + `.v1.pub` | tier-2 list, Ed25519-signed |
-| `tests/` | 161 unittest cases, no third-party deps |
+| `tests/` | 171 unittest cases, no third-party deps |
 | `install/` | Arch install kit: disk+LUKS, users, snapshots, boot, `70-verify.sh` evidence |
 | `src/tools/parametral-snapshot` | create / list / boot-entry / promote / prune rollback tool |
 | `assets/` | mark: delivered raster (transparent) for dark, flat vector for light |
@@ -87,7 +87,7 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 ```fish
 cd ~/Desktop/Development/ultra-si-os
 make guard                 # static seccomp guard
-make test                  # 161 tests, expect "OK"
+make test                  # 171 tests, expect "OK"
 make proof                 # writes proofs/isolation-proof.txt, expect "RESULT: PASS"
 bash scripts/smoke.sh      # two real processes, real sockets, expect "SMOKE OK"
 ```
@@ -139,14 +139,17 @@ Every response carries `node_id`-scoped results; errors carry stable `ultraos_co
 2. Signing/approver keys are root-owned **in production only**; in this repo they sit in the
    operator's state dir. Until that moves, the oracle stops a jailbroken model, not a compromised
    account.
-3. `app.install` is implemented end-to-end (manifest → snapshot → sandboxed install → verify →
+3. Tier 1 needs a human twice by design: once to approve the operation, once to sign the exact
+   argv (`ultraos host sign <job_id>`). That is deliberate — approval and payload cannot drift.
+   `host.nix_profile` is still contract-only.
+4. `app.install` is implemented end-to-end (manifest → snapshot → sandboxed install → verify →
    ≤3 attempts → real stderr report), but the dev host has no `/nix/store`, so the tests run a
    stubbed `nix` CLI; the real-nix path is exercised on the Arch image. `host.apply` and
    `host.nix_profile` are still contract-only (`-32008`), and artifact installs say
    `UNSUPPORTED` instead of pretending.
-4. Unprivileged `btrfs subvolume delete` needs `CAP_SYS_ADMIN`; replaced subvolumes are parked in
+5. Unprivileged `btrfs subvolume delete` needs `CAP_SYS_ADMIN`; replaced subvolumes are parked in
    `<state>/trash` and `snapshot.restore` reports `space_reclaim_needs_root`.
-5. Containers share the kernel: microVM profile is phase 5. No GPU/display/dbus passthrough yet.
+6. Containers share the kernel: microVM profile is phase 5. No GPU/display/dbus passthrough yet.
 
 ## Brand assets
 
@@ -160,5 +163,6 @@ at 16 px. Regenerate the raster exports with `python3 scripts/prepare_logo.py <s
 
 ## License
 
-Not chosen yet. Code, policy files and generated proofs will get separate terms — policy and rules
-are meant to be auditable and redistributable; the name and mark are not.
+Deliberately not chosen yet: the repository stays private until the first release, and licensing
+lands with that release (code and policy/rules will get separate terms — the policy must stay
+auditable and redistributable, the name and mark must not).

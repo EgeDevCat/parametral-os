@@ -36,7 +36,7 @@ import select
 import socketserver
 import threading
 
-from . import util
+from . import ed25519, util
 
 DEFAULT_RULES = "hard_deny.v1.json"
 
@@ -121,166 +121,44 @@ class HardDenyEngine:
 
 
 # ------------------------------------------------------------- ed25519 crypto
-#
-# Asymmetric on purpose: the oracle verifies with a public key only. An attacker
-# who owns the daemon's uid can read that public key (harmless) but cannot sign a
-# weakened list — HMAC would have handed them the signing capability itself.
+# Implementation lives in ultraos.ed25519 (shared with the approval gate and
+# sysapply). The oracle only ever loads the PUBLIC key.
 
-def _backend():
-    """Return ("sodium", lib) | ("cryptography", None) | ("openssl", path)."""
-    name = ctypes.util.find_library("sodium")
-    if name:
-        try:
-            lib = ctypes.CDLL(name)
-            lib.crypto_sign_keypair.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
-            lib.crypto_sign_seed_keypair.argtypes = [ctypes.c_char_p, ctypes.c_char_p,
-                                                     ctypes.c_char_p]
-            lib.crypto_sign_detached.argtypes = [ctypes.c_char_p, ctypes.c_void_p,
-                                                 ctypes.c_char_p, ctypes.c_ulonglong,
-                                                 ctypes.c_char_p]
-            lib.crypto_sign_verify_detached.argtypes = [ctypes.c_char_p, ctypes.c_char_p,
-                                                        ctypes.c_ulonglong, ctypes.c_char_p]
-            return "sodium", lib
-        except (OSError, AttributeError):
-            pass
-    try:
-        import cryptography.hazmat.primitives.asymmetric.ed25519  # noqa: F401
-
-        return "cryptography", None
-    except ImportError:
-        pass
-    import shutil
-
-    openssl = shutil.which("openssl")
-    if openssl:
-        return "openssl", openssl
-    raise HardDenyError("no Ed25519 backend available (need libsodium, python "
-                        "cryptography, or openssl)")
-
-
-def _public_from_secret(secret: bytes) -> bytes:
-    kind, lib = _backend()
-    if kind == "sodium":
-        pk = ctypes.create_string_buffer(32)
-        sk = ctypes.create_string_buffer(64)
-        if lib.crypto_sign_seed_keypair(pk, sk, secret[:32]) != 0:
-            raise HardDenyError("cannot derive public key from secret")
-        return bytes(pk.raw)
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
-    return Ed25519PrivateKey.from_private_bytes(secret[:32]).public_key().public_bytes(
-        serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+from . import ed25519 as _ed  # noqa: E402  (kept here for call-site clarity)
 
 
 def ed25519_keygen(sk_path: str, pub_path: str) -> tuple[bytes, bytes]:
-    """Create a secret key (root-owned in production) and a 32-byte public key."""
-    kind, lib = _backend()
-    if kind == "sodium":
-        pk = ctypes.create_string_buffer(32)
-        sk = ctypes.create_string_buffer(64)
-        if lib.crypto_sign_keypair(pk, sk) != 0:
-            raise HardDenyError("libsodium keypair generation failed")
-        secret, public = bytes(sk.raw), bytes(pk.raw)
-    elif kind == "cryptography":
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
-        key = Ed25519PrivateKey.generate()
-        seed = key.private_bytes(serialization.Encoding.Raw,
-                                 serialization.PrivateFormat.Raw,
-                                 serialization.NoEncryption())
-        public = key.public_key().public_bytes(serialization.Encoding.Raw,
-                                               serialization.PublicFormat.Raw)
-        secret = seed + public  # libsodium layout: seed || pubkey
-    else:
-        raise HardDenyError("openssl-only backend cannot generate keys; install libsodium "
-                            "or python-cryptography")
-    util.atomic_write(sk_path, secret, mode=0o600)
-    util.atomic_write(pub_path, public, mode=0o644)
-    return secret, public
-
-
-def _ed25519_sign(message: bytes, secret: bytes) -> bytes:
-    if len(secret) not in (32, 64):
-        raise HardDenyError("ed25519 secret key must be 32 or 64 bytes")
-    kind, lib = _backend()
-    if kind == "sodium":
-        sk = secret if len(secret) == 64 else secret + b"\x00" * 32
-        signature = ctypes.create_string_buffer(64)
-        length = ctypes.c_ulonglong(0)
-        if lib.crypto_sign_detached(signature, ctypes.byref(length), message,
-                                    len(message), sk) != 0:
-            raise HardDenyError("ed25519 signing failed")
-        return bytes(signature.raw)
-    if kind == "cryptography":
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-
-        return Ed25519PrivateKey.from_private_bytes(secret[:32]).sign(message)
-    raise HardDenyError("openssl-only backend cannot sign; install libsodium or "
-                        "python-cryptography")
-
-
-def _ed25519_verify(message: bytes, signature: bytes, public: bytes) -> bool:
-    if len(public) != 32 or len(signature) != 64:
-        return False
-    kind, lib = _backend()
-    if kind == "sodium":
-        return lib.crypto_sign_verify_detached(signature, message, len(message), public) == 0
-    if kind == "cryptography":
-        from cryptography.exceptions import InvalidSignature
-        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
-        try:
-            Ed25519PublicKey.from_public_bytes(public).verify(signature, message)
-            return True
-        except (InvalidSignature, ValueError):
-            return False
-    return False
+    return _ed.keygen(sk_path, pub_path)
 
 
 def load_private_key(sk_path: str) -> bytes:
-    if not os.path.exists(sk_path):
-        raise HardDenyError(f"signing key not found: {sk_path} "
-                            "(run `ultraos harddeny keygen` as the rules owner)")
-    with open(sk_path, "rb") as handle:
-        secret = handle.read()
-    if len(secret) not in (32, 64):
-        raise HardDenyError(f"signing key at {sk_path} has wrong size ({len(secret)})")
-    return secret
+    return _ed.load_secret(sk_path)
 
 
 def load_public_key(pub_path: str) -> bytes:
-    if not os.path.exists(pub_path):
-        raise HardDenyError(f"public key not found: {pub_path} "
-                            "(the oracle only ever needs the public key)")
-    with open(pub_path, "rb") as handle:
-        public = handle.read()
-    if len(public) != 32:
-        raise HardDenyError(f"public key at {pub_path} has wrong size ({len(public)})")
-    return public
+    return _ed.load_public(pub_path)
 
 
 def key_id(public: bytes) -> str:
-    return "ed25519:" + hashlib.sha256(public).hexdigest()[:16]
+    return _ed.key_id(public)
 
 
 def sign_rules(rules_path: str, sk_path: str) -> str:
-    """Sign with the private key; writes <rules>.sig next to the list."""
+    """Sign the rule list with the operator's private key; writes <rules>.sig."""
     with open(rules_path, "rb") as handle:
         body = handle.read()
-    secret = load_private_key(sk_path)
-    public = secret[32:] if len(secret) == 64 else _public_from_secret(secret)
-    signature = _ed25519_sign(body, secret)
-    record = {"alg": "ed25519", "key_id": key_id(public),
-              "sig": "base64:" + base64.b64encode(signature).decode("ascii")}
+    secret = ed25519.load_secret(sk_path)
+    public = secret[32:] if len(secret) == 64 else ed25519.public_from_secret(secret)
+    signature = ed25519.sign(body, secret)
+    record = {"alg": "ed25519", "key_id": ed25519.key_id(public),
+              "sig": "base64:" + ed25519.b64(signature)}
     util.atomic_write(rules_path + ".sig", (json.dumps(record) + "\n").encode(), mode=0o644)
-    return f"{key_id(public)}:{base64.b64encode(signature).decode('ascii')[:16]}…"
+    return f"{ed25519.key_id(public)}:{ed25519.b64(signature)[:16]}…"
 
 
 def load_rules(rules_path: str, pub_path: str,
                require_signature: bool = True) -> HardDenyEngine:
-    """Load + verify against the *public* key. Tampered/unsigned lists never load."""
+    """Load + verify against the PUBLIC key. Tampered/unsigned lists never load."""
     try:
         with open(rules_path, "rb") as handle:
             body = handle.read()
@@ -298,14 +176,11 @@ def load_rules(rules_path: str, pub_path: str,
         record = util.read_json(sig_path)
         if record.get("alg") != "ed25519":
             raise HardDenyError(f"unsupported signature algorithm {record.get('alg')!r}")
-        try:
-            raw_sig = base64.b64decode(str(record.get("sig", "")).split("base64:", 1)[-1])
-        except (ValueError, TypeError) as exc:
-            raise HardDenyError(f"signature file is malformed: {exc}") from exc
-        public = load_public_key(pub_path)
-        if not _ed25519_verify(body, raw_sig, public):
+        raw_sig = ed25519.unb64(str(record.get("sig", "")))
+        public = ed25519.load_public(pub_path)
+        if not ed25519.verify(body, raw_sig, public):
             raise HardDenyError("hard-deny list signature does not verify (tampered?)")
-        signature = f"{key_id(public)}:{base64.b64encode(raw_sig).decode('ascii')[:16]}…"
+        signature = f"{ed25519.key_id(public)}:{ed25519.b64(raw_sig)[:16]}…"
     return HardDenyEngine(rules, source=rules_path, sig=signature,
                           body_sha256=hashlib.sha256(body).hexdigest())
 

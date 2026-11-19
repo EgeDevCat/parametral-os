@@ -118,6 +118,9 @@ cost, they do not prove safety).
 6. No GPU, no display, no dbus passthrough in v1 — GUI apps are out of scope until phase 5.
 7. `harddenyd` and `ultraosd` may share a uid in development; production runs them as separate
    units with root-owned, read-only rule files.
+8. `sysapply` runs as root on the target image and is tested here with a stubbed `pacman` and a
+   scratch spool: the signature hand-off, preset validation, snapshot ordering and refusal paths
+   are covered, an actual root install is not (that needs the installed system).
 8. Unprivileged `btrfs subvolume delete` needs `CAP_SYS_ADMIN` (or `user_subvol_rm_allowed`).
    Creating and restoring snapshots works anyway; replaced subvolumes are parked in
    `<state>/trash` and must be reclaimed by root. `snapshot.restore` reports

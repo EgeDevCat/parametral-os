@@ -8,12 +8,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import time
 import shutil
 import subprocess
 import sys
 
 from . import util
 from . import harddeny as hd
+from . import sysapply
 from .approvals import ApprovalStore
 from .client import Client, ClientError
 from .daemon import SERVER_VERSION, UltraOsDaemon
@@ -112,6 +114,44 @@ def cmd_harddeny(args) -> int:
         allowed = {int(uid) for uid in (args.allow_uid or [os.getuid()])}
         return hd.serve(rules_path, pub_path, socket_path, allowed_uids=allowed)
     raise SystemExit(f"unknown harddeny action {args.action}")
+
+
+def cmd_host(args) -> int:
+    spool = args.spool or os.path.join(util.runtime_dir(), "jobs")
+    results = args.results or os.path.join(util.runtime_dir(), "results")
+    pub = args.approver_pub or os.path.join(util.runtime_dir(), "approver.pub")
+    sk = args.key or os.path.join(util.runtime_dir(), "approver.sk")
+    queue = sysapply.JobQueue(spool, results)
+
+    if args.action == "pending":
+        pending = queue.pending_jobs()
+        _print({"pending": [queue.read_pending(job) for job in pending]})
+        return 0
+    if args.action == "sign":
+        if not args.job_id:
+            raise SystemExit("host sign needs a job id (see `ultraos host pending`)")
+        _print({"signed": args.job_id, **queue.sign_pending(args.job_id, sk)})
+        return 0
+    if args.action == "result":
+        if not args.job_id:
+            raise SystemExit("host result needs a job id")
+        _print(queue.result(args.job_id) or {"state": "unknown", "job_id": args.job_id})
+        return 0
+    if args.action in ("run-once", "serve"):
+        runner = sysapply.JobRunner(spool, results, approver_pub_path=pub)
+        if args.action == "run-once":
+            _print({"results": runner.run_once()})
+            return 0
+        print(json.dumps({"event": "sysapply-listening", "spool": spool,
+                          "results": results, "approver_pub": pub}), flush=True)
+        try:
+            while True:
+                for result in runner.run_once():
+                    print(json.dumps({"event": "job", **result}), flush=True)
+                time.sleep(1)
+        except KeyboardInterrupt:
+            return 0
+    raise SystemExit(f"unknown host action {args.action}")
 
 
 def cmd_status(args) -> int:
@@ -236,8 +276,9 @@ def cmd_perm_request(args) -> int:
 
 def cmd_approvals(args) -> int:
     state_dir = util.state_dir() if not args.state else args.state
-    store = ApprovalStore(state_dir, os.path.join(util.runtime_dir(), "approver.key"),
-                          node_id=args.node_id)
+    store = ApprovalStore(state_dir, os.path.join(util.runtime_dir(), "approver.pub"),
+                          node_id=args.node_id,
+                          approver_sk_path=os.path.join(util.runtime_dir(), "approver.sk"))
     if args.action == "list":
         _print({"approvals": store.list(state=args.state_filter)})
         return 0
@@ -326,6 +367,15 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="node status").set_defaults(func=cmd_status)
     sub.add_parser("hello", help="handshake").set_defaults(func=cmd_hello)
     sub.add_parser("doctor", help="environment diagnostics").set_defaults(func=cmd_doctor)
+
+    host = sub.add_parser("host", help="tier-1 signed-job executor (sysapply)")
+    host.add_argument("action", choices=["pending", "sign", "result", "run-once", "serve"])
+    host.add_argument("job_id", nargs="?", default=None)
+    host.add_argument("--spool", default=None)
+    host.add_argument("--results", default=None)
+    host.add_argument("--approver-pub", default=None)
+    host.add_argument("--key", default=None, help="approver private key (sign only)")
+    host.set_defaults(func=cmd_host)
 
     hard = sub.add_parser("harddeny", help="tier-2 deterministic deny oracle")
     hard.add_argument("action", choices=["serve", "check", "keygen", "sign", "verify"])

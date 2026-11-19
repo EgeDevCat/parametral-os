@@ -211,7 +211,7 @@ class DaemonTest(unittest.TestCase):
     # ------------------------------------------------------------ approvals
 
     def _approver(self) -> ApprovalStore:
-        return ApprovalStore(self.harness.state, self.harness.approver_key_path)
+        return self.harness.approver_store()
 
     def test_approval_gate_full_flow(self):
         with self.assertRaises(ClientError) as raised:

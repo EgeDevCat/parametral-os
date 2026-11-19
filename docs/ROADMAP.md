@@ -74,8 +74,8 @@ adı olarak kalıyor (her yerde yeniden adlandırma churn'ü yok, marka sonra ot
 
 | # | iş | "bitti" kanıtı |
 |---|---|---|
-| C1 | `parametral-sysapply.service` (root, ayrı unit): `/run/parametral/jobs/*.json` **approver imzalı** iş dosyası; sadece `hostapply.PRESETS`; önce snapshot; sonra çalıştır | onaylı `pacman -S ripgrep` kuruldu + snapshot id; `sh -c` içeren iş reddedildi; **harddeny anahtarıyla imzalı iş reddedildi** |
-| C2 | `approver` ayrı uid, anahtar 0600; bildirim + onay/reddet/beklet | `ai` onay anahtarını okuyamıyor; onaysız tier-1 yok |
+| C1 ✅ | `sysapply` (root): approver imzalı iş dosyası, `hostapply.PRESETS`, önce snapshot. Kod + 10 test (stub pacman). Servis unit'i `install/systemd/` altına eklenecek | `tests/test_sysapply.py`: imzalı iş uygulandı; kurcalanan yük/yanlış anahtar/`sh -c`/snapshot hatası reddedildi |
+| C2 | `approver` ayrı uid, Ed25519 anahtar 0600; onay + iş imzalama (`ultraos host sign`) | `ai` onay anahtarını okuyamıyor; onaysız tier-1 yok |
 | C3 | Geri alma: `snapshot.restore` ile `@` snapshot'ı | paket eski haline döndü |
 | C4 | Kısmi pacman yasağı preset'te kilitli: `-U`, `--overwrite` yok | test: `pacman -U` → red |
 
