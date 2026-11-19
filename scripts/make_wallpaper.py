@@ -77,6 +77,12 @@ def build(mode):
     img = glow(img, (int(W * 0.22), int(H * 0.86)), 900, *p["glow"])
     img = glow(img, (int(W * 0.86), int(H * 0.18)), 780, *p["glow2"])
 
+    # Warm halo under the dock. The panel really is a floating island (rounded corner, a few
+    # pixels of gap), but on a uniformly dark background that shape is invisible — the glow is
+    # what makes the island read as a shape instead of a strip.
+    img = glow(img, (int(W * 0.5), int(H * 1.04)), int(W * 0.62),
+               p["glow"][0], int(p["glow"][1] * 0.75))
+
     # the mark, large and off-centre right, cut by the frame
     g = ghost(p["ghost"], p["ghost_a"], 1500, 10)
     img.alpha_composite(g, (int(W * 0.86) - g.width // 2, int(H * 0.40) - g.height // 2))
