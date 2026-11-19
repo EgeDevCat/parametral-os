@@ -29,6 +29,20 @@ if [ -d "$SRC/branding/cursors/Parametral" ]; then
   printf '[Icon Theme]\nInherits=Parametral\n' > /usr/share/icons/default/index.theme
 fi
 
+
+echo "==> app icons (paneldeki varsayılan uygulamalar bizim paletle)"
+if [ -d "$SRC/branding/icons/apps" ]; then
+  for svg in "$SRC/branding/icons/apps"/*.svg; do
+    name="$(basename "$svg")"
+    while IFS= read -r target; do
+      [ -f "$target.orig" ] || cp "$target" "$target.orig"
+      cp "$svg" "$target"
+    done < <(find /usr/share/icons/breeze /usr/share/icons/breeze-dark -name "$name" 2>/dev/null)
+  done
+  gtk-update-icon-cache -f /usr/share/icons/breeze >/dev/null 2>&1 || true
+  gtk-update-icon-cache -f /usr/share/icons/breeze-dark >/dev/null 2>&1 || true
+fi
+
 echo "==> KDE global theme (Parametral görünümü Sistem Ayarları'nda)"
 install -d /usr/share/plasma/look-and-feel
 rm -rf /usr/share/plasma/look-and-feel/org.parametral.desktop
