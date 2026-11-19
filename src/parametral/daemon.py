@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import base64
 import datetime
+import hashlib
 import time
 import errno
 import json
 import os
+import re
 import socket
 import socketserver
 import threading
@@ -20,7 +22,7 @@ import time
 import traceback
 
 from . import appinstall, hostapply, netproxy, sysapply, util
-from .approvals import ApprovalError, ApprovalStore, desktop_notifier
+from .approvals import FINAL_STATES, ApprovalError, ApprovalStore, desktop_notifier
 from .audit import AuditLog
 from .harddeny import HardDenyClient, HardDenyUnavailable
 from .policy import OPERATIONS, Policy, PolicyError
@@ -582,7 +584,36 @@ class UltraOsDaemon:
                                                  limit=int(params.get("limit", 50)))}
 
     def _approvals_get(self, params: dict, _token) -> dict:
-        return self.approvals.get(_require_id(params, "approval_id"))
+        """Fetch one approval; `wait_s` turns this into a long-poll.
+
+        The server is threaded, so a waiting client does not stall other calls, but the wait
+        is still capped: a client must not be able to pin a thread indefinitely.
+        """
+        approval_id = _require_id(params, "approval_id")
+        raw_wait = params.get("wait_s", 0)
+        try:
+            wait_s = float(raw_wait)
+        except (TypeError, ValueError) as exc:
+            raise _invalid("wait_s must be a number", "wait_s") from exc
+        wait_s = max(0.0, min(wait_s, float(self.policy.limit("approval_wait_s", 120))))
+        started = time.monotonic()
+        approval = self.approvals.get(approval_id)
+        while approval.get("state") not in FINAL_STATES and time.monotonic() - started < wait_s:
+            time.sleep(0.2)
+            approval = self.approvals.get(approval_id)
+        return {
+            "approval_id": approval["approval_id"],
+            "operation": approval.get("operation"),
+            "scope": approval.get("scope"),
+            "state": approval.get("state"),
+            "requested_by": approval.get("requested_by"),
+            "justification": approval.get("justification"),
+            "expires_at": approval.get("expires_at"),
+            "decided_at": approval.get("decided_at"),
+            "decided_by": approval.get("decided_by"),
+            "reason": approval.get("reason"),
+            "waited_s": round(time.monotonic() - started, 3),
+        }
 
     def _approvals_decide(self, params: dict, _token) -> dict:
         approval_id = _require_id(params, "approval_id")
@@ -701,10 +732,75 @@ class UltraOsDaemon:
             timeout_s = int(timeout_s)
         except (TypeError, ValueError) as exc:
             raise _invalid("timeout_s must be an integer", "timeout_s") from exc
-        return self.sandboxes.run(sandbox_id, [str(part) for part in cmd],
-                                  cwd=str(params.get("cwd") or "/work"),
-                                  env=env, timeout_s=timeout_s,
-                                  max_output_bytes=int(params.get("max_output_bytes", 65536)))
+        meta = self.sandboxes.get(sandbox_id)
+        result = self.sandboxes.run(sandbox_id, [str(part) for part in cmd],
+                                    cwd=str(params.get("cwd") or "/work"),
+                                    env=env, timeout_s=timeout_s,
+                                    max_output_bytes=int(params.get("max_output_bytes", 65536)))
+        if params.get("verdict") is not None:
+            result["verdict"] = self._check_verdict(meta, result, params["verdict"])
+        return result
+
+    def _check_verdict(self, meta: dict, result: dict, spec) -> dict:
+        """Evaluate a postcondition, so "the command ran" is not mistaken for "it worked".
+
+        Supported: expect_exit (int or list), stdout_contains, stdout_regex,
+        stderr_contains, file_exists, file_sha256. Unknown keys are an error rather than a
+        silent pass — a typo in the verdict must not turn into a green light.
+        """
+        if not isinstance(spec, dict):
+            raise _invalid("verdict must be an object", "verdict")
+        known = {"expect_exit", "stdout_contains", "stdout_regex", "stderr_contains",
+                 "file_exists", "file_sha256"}
+        unknown = sorted(set(spec) - known)
+        if unknown:
+            raise _invalid(f"verdict: unknown check(s) {unknown}", "verdict")
+
+        stdout = result.get("stdout") or ""
+        stderr = result.get("stderr") or ""
+        checks: list[dict] = []
+
+        def record(name: str, ok: bool, detail: str) -> None:
+            checks.append({"check": name, "ok": bool(ok), "detail": str(detail)[:300]})
+
+        if "expect_exit" in spec:
+            want = spec["expect_exit"]
+            wanted = want if isinstance(want, list) else [want]
+            try:
+                wanted = [int(value) for value in wanted]
+            except (TypeError, ValueError) as exc:
+                raise _invalid("verdict.expect_exit must be an int or a list of ints",
+                               "verdict") from exc
+            code = result.get("exit_code")
+            record("expect_exit", code in wanted, f"exit={code} want={wanted}")
+        if "stdout_contains" in spec:
+            needle = str(spec["stdout_contains"])
+            record("stdout_contains", needle in stdout, f"{needle!r} in stdout")
+        if "stderr_contains" in spec:
+            needle = str(spec["stderr_contains"])
+            record("stderr_contains", needle in stderr, f"{needle!r} in stderr")
+        if "stdout_regex" in spec:
+            pattern = str(spec["stdout_regex"])
+            try:
+                matched = re.search(pattern, stdout, re.MULTILINE) is not None
+            except re.error as exc:
+                raise _invalid(f"verdict.stdout_regex is not a valid regex: {exc}",
+                               "verdict") from exc
+            record("stdout_regex", matched, pattern)
+        if "file_exists" in spec:
+            host = self.sandboxes.host_path(meta, str(spec["file_exists"]))
+            record("file_exists", os.path.exists(host), spec["file_exists"])
+        if "file_sha256" in spec:
+            want = str(spec["file_sha256"])
+            host = self.sandboxes.host_path(meta, str(spec.get("file_exists") or ""))
+            if not os.path.exists(host):
+                record("file_sha256", False, "file missing")
+            else:
+                with open(host, "rb") as handle:
+                    digest = hashlib.sha256(handle.read()).hexdigest()
+                record("file_sha256", digest == want.replace("sha256:", ""),
+                       f"{digest} want {want}")
+        return {"passed": all(item["ok"] for item in checks), "checks": checks}
 
     # ------------------------------------------------------------ filesystem
 
