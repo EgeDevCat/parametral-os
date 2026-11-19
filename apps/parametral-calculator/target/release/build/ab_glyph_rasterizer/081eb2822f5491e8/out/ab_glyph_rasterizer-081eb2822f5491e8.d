@@ -1,0 +1,9 @@
+/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/ab_glyph_rasterizer/081eb2822f5491e8/out/ab_glyph_rasterizer-081eb2822f5491e8.d: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/lib.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/geometry.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/raster.rs
+
+/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/ab_glyph_rasterizer/081eb2822f5491e8/out/libab_glyph_rasterizer-081eb2822f5491e8.rlib: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/lib.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/geometry.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/raster.rs
+
+/home/egedevcat/Desktop/Development/ultra-si-os/apps/parametral-calculator/target/release/build/ab_glyph_rasterizer/081eb2822f5491e8/out/libab_glyph_rasterizer-081eb2822f5491e8.rmeta: /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/lib.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/geometry.rs /home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/raster.rs
+
+/home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/lib.rs:
+/home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/geometry.rs:
+/home/egedevcat/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ab_glyph_rasterizer-0.1.10/src/raster.rs:

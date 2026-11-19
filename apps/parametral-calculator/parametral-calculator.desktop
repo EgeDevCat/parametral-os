@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Parametral Hesap
+Name[en]=Parametral Calculator
+Comment=Hesap makinesi
+Comment[en]=Calculator
+Exec=parametral-calculator
+Icon=accessories-calculator
+Terminal=false
+Categories=Utility;Calculator;
+Keywords=hesap;calculator;math;
+StartupWMClass=parametral-calculator

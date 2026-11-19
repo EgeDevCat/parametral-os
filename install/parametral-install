@@ -1,0 +1,211 @@
+#!/usr/bin/env python3
+"""parametral-install — the branded installer wizard for the live image.
+
+A terminal wizard on purpose: the live ISO carries no Qt, and a TUI that always works
+beats a GUI that sometimes does not. It only collects answers and calls the numbered
+install/ scripts, so the logic stays in one place.
+
+    parametral-install            normal run
+    parametral-install --dry-run  print the plan, touch nothing
+"""
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+AMBER = "\033[38;5;214m"
+DIM = "\033[38;5;245m"
+INK = "\033[38;5;253m"
+RED = "\033[38;5;167m"
+BOLD = "\033[1m"
+OFF = "\033[0m"
+
+SRC = os.path.dirname(os.path.abspath(__file__))
+DRY = "--dry-run" in sys.argv
+
+MARK = r"""
+      .  *  .
+   .    ___    .
+     .-/   \-.       P A R A M E T R A L
+      |  o  |         minimal · reversible · governed
+     '-.___.-'
+"""
+
+
+def clear():
+    print("\033[2J\033[H", end="")
+
+
+def header(title):
+    clear()
+    print(f"{AMBER}{MARK}{OFF}")
+    print(f"{DIM}{'─' * 62}{OFF}")
+    print(f"{BOLD}{INK} {title}{OFF}")
+    print(f"{DIM}{'─' * 62}{OFF}\n")
+
+
+def ask(prompt, default=""):
+    suffix = f" {DIM}[{default}]{OFF}" if default else ""
+    while True:
+        try:
+            value = input(f"{AMBER}?{OFF} {prompt}{suffix}: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nİptal edildi.")
+            sys.exit(130)
+        if value:
+            return value
+        if default:
+            return default
+
+
+def ask_secret(prompt):
+    import getpass
+
+    while True:
+        try:
+            a = getpass.getpass(f"{AMBER}?{OFF} {prompt}: ")
+            b = getpass.getpass(f"{AMBER}?{OFF} {prompt} (tekrar): ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nİptal edildi.")
+            sys.exit(130)
+        if len(a) < 6:
+            print(f"{RED}   En az 6 karakter.{OFF}")
+            continue
+        if a != b:
+            print(f"{RED}   Parolalar uyuşmuyor.{OFF}")
+            continue
+        return a
+
+
+def menu(prompt, options, default_index=0):
+    print(f"{AMBER}?{OFF} {prompt}")
+    for i, opt in enumerate(options):
+        mark = f"{AMBER}●{OFF}" if i == default_index else f"{DIM}○{OFF}"
+        print(f"   {mark} {i + 1}) {opt}")
+    while True:
+        raw = ask("Seçim", str(default_index + 1))
+        try:
+            idx = int(raw) - 1
+            if 0 <= idx < len(options):
+                return idx
+        except ValueError:
+            pass
+        print(f"{RED}   Geçersiz seçim.{OFF}")
+
+
+def disks():
+    out = []
+    try:
+        lsblk = subprocess.run(
+            ["lsblk", "-dno", "NAME,SIZE,TYPE,MODEL"],
+            capture_output=True, text=True, check=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return out
+    for line in lsblk.splitlines():
+        parts = line.split()
+        if len(parts) < 3 or parts[2] != "disk":
+            continue
+        name, size, model = parts[0], parts[1], " ".join(parts[3:]) or "disk"
+        if name.startswith(("loop", "sr", "zram")):
+            continue
+        out.append((name, size, model))
+    return out
+
+
+def run_step(title, script, args=(), env=None):
+    print(f"\n{AMBER}▶{OFF} {BOLD}{title}{OFF}")
+    cmd = ["bash", os.path.join(SRC, script), *args]
+    if DRY:
+        print(f"  {DIM}(dry-run) {' '.join(cmd)}{OFF}")
+        return True
+    started = time.time()
+    proc = subprocess.run(cmd, env={**os.environ, **(env or {})})
+    elapsed = int(time.time() - started)
+    if proc.returncode != 0:
+        print(f"{RED}✗ {title} başarısız (çıkış {proc.returncode}){OFF}")
+        return False
+    print(f"{DIM}  ✓ {elapsed}s{OFF}")
+    return True
+
+
+def main():
+    if os.geteuid() != 0:
+        print(f"{RED}Root olarak çalıştır.{OFF}")
+        return 1
+
+    header("Kurulum · 1/5 — Disk")
+    found = disks()
+    if not found:
+        print(f"{RED}Disk bulunamadı.{OFF}")
+        return 1
+    labels = [f"/dev/{n:<8} {s:>7}  {m}" for n, s, m in found]
+    labels.append("Elle yol gireceğim")
+    idx = menu("Sistem hangi diske kurulsun? (silinecek)", labels)
+    if idx == len(found):
+        target = "/dev/" + ask("Disk yolu")
+    else:
+        target = "/dev/" + found[idx][0]
+
+    header("Kurulum · 2/5 — Şifreleme")
+    enc = menu("Disk şifrelensin mi (LUKS2)?", [
+        "Evet — açılışta parola sorulur (önerilen)",
+        "Hayır — parolasız açılır (yalnız test için)",
+    ])
+    luks = "1" if enc == 0 else "0"
+
+    header("Kurulum · 3/5 — Sistem")
+    hostname = ask("Bilgisayar adı", "parametral")
+    username = ask("Kullanıcı adı", "operator")
+
+    header("Kurulum · 4/5 — Parola")
+    print(f"{DIM}Bu parola hem {username} hem disk şifrelemesi için kullanılacak.{OFF}")
+    password = ask_secret("Parola")
+
+    header("Kurulum · 5/5 — Özet")
+    print(f"  disk        : {BOLD}{target}{OFF}")
+    print(f"  şifreleme   : {BOLD}{'LUKS2' if luks == '1' else 'kapalı'}{OFF}")
+    print(f"  bilgisayar  : {BOLD}{hostname}{OFF}")
+    print(f"  kullanıcı   : {BOLD}{username}{OFF}")
+    print(f"  masaüstü    : KDE Plasma (Parametral teması)")
+    print()
+    print(f"{RED}{BOLD}UYARI:{OFF} {target} üzerindeki TÜM veriler silinecek.")
+    if ask("Onaylamak için YES yaz", "hayır").upper() != "YES":
+        print("Vazgeçildi.")
+        return 1
+
+    env = {
+        "PARAMETRAL_HOSTNAME": hostname,
+        "PARAMETRAL_USER": username,
+        "PARAMETRAL_PASSWORD": password,
+        "PARAMETRAL_LUKS": luks,
+    }
+
+    steps = [
+        ("Ön kontrol", "10-preflight.sh", [target, "--yes"]),
+        ("Disk ve btrfs", "20-disk.sh", [target, "--yes"] + ([] if luks == "1" else ["--no-luks"])),
+        ("Temel sistem (iki çekirdek + nix)", "30-bootstrap.sh", []),
+        ("Kullanıcılar", "40-users.sh", ["--non-interactive"]),
+        ("Marka (splash + giriş)", "65-branding.sh", []),
+        ("Masaüstü kimliği", "75-desktop.sh", []),
+        ("Snapshot'lar", "50-snapshots.sh", []),
+        ("Önyükleyici", "60-boot.sh", []),
+        ("Doğrulama", "70-verify.sh", []),
+    ]
+
+    header("Kurulum başlıyor")
+    for title, script, args in steps:
+        if not run_step(title, script, args):
+            print(f"\n{RED}Kurulum durdu. Düzeltip tekrar deneyebilirsin.{OFF}")
+            return 1
+
+    header("Bitti")
+    print(f"  {AMBER}✓{OFF} Parametral OS kuruldu.")
+    print(f"  {DIM}Kullanıcı:{OFF} {username}")
+    print(f"  {DIM}Disk:{OFF} {target}")
+    print(f"\n  Yeniden başlat: {BOLD}reboot{OFF}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

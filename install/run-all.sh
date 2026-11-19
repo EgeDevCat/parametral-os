@@ -18,6 +18,8 @@ echo "=== 40 users (in chroot — must target the installed system, not the live
 arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/40-users.sh --non-interactive'
 echo "=== 65 branding (splash + login)"
 bash "$SRC/install/65-branding.sh"
+echo "=== 75 desktop identity (in chroot)"
+arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/75-desktop.sh'
 echo "=== 50 snapshots (in chroot)"
 arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/50-snapshots.sh'
 echo "=== 60 boot (in chroot)"
