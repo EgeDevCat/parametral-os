@@ -1,0 +1,1 @@
+/home/egedevcat/Desktop/Development/parametral-os/apps/parametral-approvals/target/release/parametral-approvals: /home/egedevcat/Desktop/Development/parametral-os/apps/parametral-approvals/src/main.rs

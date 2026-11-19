@@ -15,6 +15,8 @@ echo "=== 35 nix (package manager)"
 bash "$SRC/install/35-nix.sh"
 echo "=== 76 xdg defaults (theme, cursor, fonts)"
 bash "$SRC/install/76-xdg-defaults.sh"
+echo "=== 78 ai (hesap + onay penceresi)"
+bash "$SRC/install/78-ai.sh"
 echo "=== payload into the installed system"
 mkdir -p /mnt/opt
 cp -r "$SRC" /mnt/opt/parametral-src
