@@ -125,3 +125,21 @@ Servis dosyaları `install/systemd/` altında: `parametrald.service`, `parametra
   `prune` bu yüzden 10 taneyle sınırlı.
 - Bu kit `nix` kurar ama AI'ın uygulama kurma hattı `app.install` üzerinden yürür; ayrıntı
   `docs/API-v1.md` §5.9.
+
+## Sanal makinede deneme (VirtualBox)
+
+Tek komut: `bash install/run-all.sh /dev/sda` (LUKS yok, `operator`/`ai` parolası `parametral`).
+Gerçek kurulumda adımları elle koş; `--non-interactive` yalnız test VM'i içindir.
+
+VM'de karşılaşılan iki tuzak:
+
+1. **Kirli ESP.** Kurulumdan sonra VM'i düzgün kapatmamak FAT'ı bozuk bırakır; firmware
+   `BOOTX64.EFI`'ı yüklemeyi reddeder, systemd-boot girdileri 0 bayta düşer.
+   `install/run-all.sh` artık `sync` + `umount -R /mnt` yapıyor. Yine olursa:
+   canlı ISO'dan `bash install/fix-boot.sh /dev/sda` (ESP'yi 2 KiB cluster'lı FAT32 olarak
+   yeniden kurar, çekirdekleri geri koyar, systemd-boot + `\EFI\BOOT\BOOTX64.EFI` yazar).
+2. **VirtualBox EFI'nin NVRAM'i.** Bu sürümde (7.2.22) `efibootmgr` ile yazılan girdi
+   firmware'i boş ekrana düşürüyor; `VBoxManage modifynvram <vm> inituefivarstore` sıfırlıyor,
+   sonrasında CD'den açılıyor. Sabit disk için girdiyi firmware kendisi oluşturmuyor. Yani
+   VM'de uçtan uca açılış doğrulaması güvenilir değil — gerçek donanımda UEFI + `efibootmgr`
+   standart yol. Masaüstü: `plasma-meta` + `sddm`, `sddm.service` ve `NetworkManager` açık.

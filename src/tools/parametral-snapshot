@@ -20,9 +20,13 @@ ROOT_SUBVOL="${PARAMETRAL_ROOT_SUBVOL:-@}"
 HOME_SUBVOL="${PARAMETRAL_HOME_SUBVOL:-@home}"
 DRY_RUN="${PARAMETRAL_DRY_RUN:-0}"
 DEV="${PARAMETRAL_DEV:-}"          # e.g. UUID=…; needed for boot entries
-ROOT_PREFIX="${PARAMETRAL_ROOT_PREFIX:-}"   # test hook: point at a scratch tree
-ROOT_PATH="$ROOT_PREFIX/$ROOT_SUBVOL"
-HOME_PATH="$ROOT_PREFIX/$HOME_SUBVOL"
+# Where the subvolumes are *mounted*. On a booted system these are / and /home
+# (the subvol names @ and @home are only used for snapshot naming and boot entries);
+# at install time, or in tests, point them somewhere else.
+ROOT_PATH="${PARAMETRAL_ROOT_PATH:-${PARAMETRAL_ROOT_PREFIX:-}/}"
+HOME_PATH="${PARAMETRAL_HOME_PATH:-${PARAMETRAL_ROOT_PREFIX:-}/home}"
+ROOT_PATH="${ROOT_PATH%/}"; [ -n "$ROOT_PATH" ] || ROOT_PATH="/"
+HOME_PATH="${HOME_PATH%/}"; [ -n "$HOME_PATH" ] || HOME_PATH="/home"
 
 log()  { printf '[snapshot] %s\n' "$*" >&2; }
 die()  { printf '[snapshot] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -31,11 +35,11 @@ run()  { if [ "$DRY_RUN" = "1" ]; then printf 'DRY %s\n' "$*"; else "$@"; fi; }
 require_root() {
   # A redirected scratch tree (PARAMETRAL_ROOT_PREFIX) needs no privileges: that is
   # exactly how the tool is tested without touching a real system.
-  if [ "$DRY_RUN" = "1" ] || [ -n "$ROOT_PREFIX" ]; then
+  if [ "$DRY_RUN" = "1" ] || [ -n "${PARAMETRAL_ROOT_PATH:-}" ] || [ -n "${ROOT_PREFIX:-}" ]; then
     return 0
   fi
   if [ "$(id -u)" -ne 0 ]; then
-    die "must run as root (or PARAMETRAL_DRY_RUN=1 / PARAMETRAL_ROOT_PREFIX for a scratch run)"
+    die "must run as root (or PARAMETRAL_DRY_RUN=1 / PARAMETRAL_ROOT_PATH for a scratch run)"
   fi
 }
 
@@ -115,6 +119,9 @@ EOF
 cmd_promote() {
   require_root
   local id="${1:-}" dir stamp
+  if [ "$ROOT_PATH" = "/" ] && [ "$DRY_RUN" != "1" ] && [ -z "${PARAMETRAL_ALLOW_LIVE_PROMOTE:-}" ]; then
+    die "cannot promote the live root subvolume (/) — run from the installer with PARAMETRAL_ROOT_PATH=/mnt"
+  fi
   [ -n "$id" ] || die "promote needs a snapshot id"
   if [ "$ROOT_SUBVOL" != "@" ] && [ "${PARAMETRAL_ALLOW_FOREIGN:-0}" != "1" ]; then
     die "refusing to promote into '$ROOT_SUBVOL' (set PARAMETRAL_ALLOW_FOREIGN=1 to override)"

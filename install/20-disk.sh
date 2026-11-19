@@ -28,8 +28,11 @@ sgdisk --print "$DISK"
 partprobe "$DISK" || true
 udevadm settle
 
+echo "==> wiping old signatures"
+wipefs -a "$PART_ESP" "$PART_ROOT" 2>/dev/null || true
+
 echo "==> formatting ESP"
-mkfs.fat -F32 -n PARAMETRAL-ESP "$PART_ESP"
+mkfs.fat -F32 -n PARAMETRAL "$PART_ESP"
 
 if [ "$LUKS" = "1" ]; then
   echo "==> LUKS2 on $PART_ROOT (you will type this passphrase at every boot)"
@@ -38,7 +41,7 @@ if [ "$LUKS" = "1" ]; then
 fi
 
 echo "==> btrfs"
-mkfs.btrfs -L parametral "$ROOT_DEV"
+mkfs.btrfs -f -L parametral "$ROOT_DEV"
 
 mount_opts="compress=zstd:3,noatime,ssd,discard=async,space_cache=v2"
 mount "$ROOT_DEV" /mnt

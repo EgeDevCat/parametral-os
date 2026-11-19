@@ -8,6 +8,18 @@ source /etc/parametral/snapshot.env
 echo "==> installing systemd-boot on the ESP"
 bootctl --path=/boot install
 
+# The removable-media fallback: some firmware ignores EFI variables entirely and only
+# boots \EFI\BOOT\BOOTX64.EFI. Without this copy such machines boot straight to setup.
+install -Dm0644 /usr/lib/systemd/boot/efi/systemd-bootx64.efi /boot/EFI/BOOT/BOOTX64.EFI
+
+if [ -d /sys/firmware/efi/efivars ] && [ -w /sys/firmware/efi/efivars ] && [ -n "${PARAMETRAL_DEV:-}" ]; then
+  efibootmgr --create --disk "${PARAMETRAL_DEV%[0-9]}" --part 1 --label Parametral \
+             --loader '\EFI\BOOT\BOOTX64.EFI' || \
+    echo "WARN: efibootmgr could not write a boot entry — the fallback path is installed"
+else
+  echo "NOTE: no writable efivars (chroot?): firmware will use \EFI\BOOT\BOOTX64.EFI"
+fi
+
 cat > /boot/loader/loader.conf <<'EOF'
 default  parametral.conf
 timeout  4
@@ -33,6 +45,9 @@ initrd  /$initrd
 options rootflags=subvol=@ $CMDLINE_COMMON
 EOF
 }
+
+echo "==> services: desktop, network"
+systemctl enable sddm.service NetworkManager.service
 
 echo "==> entries: main, backup kernel, fallback initramfs"
 write_entry parametral.conf        "ParametralOS (linux)"      vmlinuz-linux     initramfs-linux.img

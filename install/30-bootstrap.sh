@@ -6,16 +6,12 @@ mountpoint -q /mnt || { echo "/mnt is not mounted — run 20-disk.sh first" >&2;
 
 source /mnt/etc/parametral/snapshot.env 2>/dev/null || true
 
-echo "==> pacstrap (main kernel + backup kernel + nix)"
-pacstrap -K /mnt \
+echo "==> pacstrap (main kernel + backup kernel + nix + KDE Plasma)"
+pacstrap /mnt \
   base base-devel linux linux-lts linux-firmware \
-  btrfs-progs dosfstools e2fsprogs cryptsetup sudo \
-  networkmanager openssh vim git less \
-  nix systemd-boot-manager 2>/dev/null || \
-pacstrap -K /mnt \
-  base base-devel linux linux-lts linux-firmware \
-  btrfs-progs dosfstools e2fsprogs cryptsetup sudo \
-  networkmanager openssh vim git less nix
+  btrfs-progs dosfstools e2fsprogs cryptsetup sudo efibootmgr \
+  networkmanager openssh vim git less nix \
+  plasma-meta sddm konsole dolphin kate
 
 echo "==> fstab"
 genfstab -U /mnt >> /mnt/etc/fstab

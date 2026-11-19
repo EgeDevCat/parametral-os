@@ -4,7 +4,8 @@ set -uo pipefail
 PASS=0; FAIL=0
 ok()   { printf '  [PASS] %s\n' "$*"; PASS=$((PASS+1)); }
 bad()  { printf '  [FAIL] %s\n' "$*"; FAIL=$((FAIL+1)); }
-check(){ if eval "$2" >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi; }
+# eval in a subshell: a check expression contains `exit 1` and must not end the script
+check(){ if ( eval "$2" ) >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi; }
 
 echo "Parametral OS install verification — $(date -u +%FT%TZ) on $(uname -r)"
 echo

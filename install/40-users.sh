@@ -9,6 +9,16 @@
 set -Eeuo pipefail
 [ "$(id -u)" -eq 0 ] || { echo "run as root" >&2; exit 1; }
 
+# --non-interactive is for throwaway test VMs only: it sets a known operator password
+# instead of prompting. A real install must type the password.
+NONINTERACTIVE=0
+for arg in "$@"; do
+  case "$arg" in
+    --non-interactive) NONINTERACTIVE=1 ;;
+    *) echo "unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
+
 echo "==> users"
 id operator  >/dev/null 2>&1 || useradd -m -G wheel -s /bin/bash operator
 id parametral   >/dev/null 2>&1 || useradd -r -d /var/lib/parametral -s /usr/bin/nologin parametral
