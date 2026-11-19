@@ -70,6 +70,23 @@ class Limits:
                 "pids": self.pids, "disk_mb": self.disk_mb}
 
 
+def resolve_sandbox_uid(current_uid: int | None = None) -> int:
+    """The uid a sandbox must run as.
+
+    A root daemon (CI, early images, someone running `sudo parametrald`) must never hand
+    the AI a root sandbox. We map to PARAMETRAL_SANDBOX_UID (default 1000) instead; the
+    writable trees are chowned to it in create().
+    """
+    uid = os.getuid() if current_uid is None else current_uid
+    if uid != 0:
+        return uid
+    target = int(os.environ.get("PARAMETRAL_SANDBOX_UID", "1000"))
+    if target == 0:
+        raise SandboxError("INVALID_PARAMS",
+                           "PARAMETRAL_SANDBOX_UID=0 would create a root sandbox")
+    return target
+
+
 def _read(path: str) -> str:
     try:
         with open(path, "r", encoding="utf-8") as handle:
@@ -99,8 +116,7 @@ class SandboxManager:
         self.trash_dir = util.ensure_dir(os.path.join(self.state_root, "trash"))
         # A root daemon (CI, early images) must not produce a root sandbox: the sandbox
         # runs as this uid instead, and its writable trees are chowned to it.
-        self.sandbox_uid = int(os.environ.get("PARAMETRAL_SANDBOX_UID", "1000")) \
-            if os.getuid() == 0 else os.getuid()
+        self.sandbox_uid = resolve_sandbox_uid()
         self.btrfs_delete_ok = False
         self.btrfs_available = self._probe_btrfs()
 

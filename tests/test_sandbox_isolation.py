@@ -9,7 +9,7 @@ import unittest
 import support  # noqa: F401
 
 from parametral.proof import run_proof
-from parametral.sandbox import Limits, SandboxError, SandboxManager
+from parametral.sandbox import Limits, SandboxError, SandboxManager, resolve_sandbox_uid
 
 
 class IsolationTest(unittest.TestCase):
@@ -26,6 +26,20 @@ class IsolationTest(unittest.TestCase):
         except SandboxError:
             pass
         shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_root_daemon_never_gets_a_root_sandbox(self):
+        import os as _os
+
+        self.assertEqual(resolve_sandbox_uid(1000), 1000)
+        self.assertEqual(resolve_sandbox_uid(0), 1000)          # default mapping
+        _os.environ["PARAMETRAL_SANDBOX_UID"] = "1500"
+        try:
+            self.assertEqual(resolve_sandbox_uid(0), 1500)
+            _os.environ["PARAMETRAL_SANDBOX_UID"] = "0"
+            with self.assertRaises(SandboxError):
+                resolve_sandbox_uid(0)
+        finally:
+            _os.environ.pop("PARAMETRAL_SANDBOX_UID", None)
 
     # ---------------------------------------------------------------- proof
 

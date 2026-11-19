@@ -18,17 +18,22 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Unprivileged test user (production runs as a service user, not root)
+        run: |
+          useradd -m tester
+          chown -R tester:tester "$GITHUB_WORKSPACE"
+
       - name: Build the seccomp guard
-        run: make guard
+        run: runuser -u tester -- make guard
 
       - name: Unit and integration tests
-        run: make test
+        run: runuser -u tester -- make test
 
       - name: Isolation proof (bwrap must work in this runner)
-        run: make proof
+        run: runuser -u tester -- make proof
 
       - name: Two-process smoke test
-        run: bash scripts/smoke.sh
+        run: runuser -u tester -- bash scripts/smoke.sh
 
       - name: No swallowed exceptions
         run: |
