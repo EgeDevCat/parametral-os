@@ -143,3 +143,18 @@ VM'de karşılaşılan iki tuzak:
    sonrasında CD'den açılıyor. Sabit disk için girdiyi firmware kendisi oluşturmuyor. Yani
    VM'de uçtan uca açılış doğrulaması güvenilir değil — gerçek donanımda UEFI + `efibootmgr`
    standart yol. Masaüstü: `plasma-meta` + `sddm`, `sddm.service` ve `NetworkManager` açık.
+
+## Nix — uygulama paket yöneticisi
+
+`pacman` temel sistemi tutar; **uygulamalar Nix'ten gelir**. Gerekçe: kurulumlar eklemelidir
+(`/usr` elle dokunulmaz), her işlem bir profile generation'ıdır ve tek komutla geri alınır —
+AI'ın deneme yapmasını güvenli kılan şey bu.
+
+- `install/35-nix.sh`: `/nix` + `nix-store --init`, `nix.conf`
+  (`experimental-features = nix-command flakes`, `sandbox = true`, `require-sigs = true`,
+  `allowed-users = *`, `trusted-users = root parametral`), `nix-daemon` açık.
+  **`allowed-users` varsayılanı `@users`** — normal kullanıcılar bu grupta olmadığı için
+  daemon bağlantıyı reddeder; `*` yapılmazsa `nix profile` çalışmaz.
+- `bin/parametral-nix`: `install / remove / list / search / upgrade / rollback / generations / which`.
+- Doğrulandı (VM): `nixpkgs#hello` kuruldu ve çalıştı; `cowsay` kurulup `rollback` ile
+  kaldırıldı, `hello` yerinde kaldı.

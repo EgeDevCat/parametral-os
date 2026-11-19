@@ -11,6 +11,8 @@ echo "=== 20 disk (no LUKS: test VM only)"
 bash "$SRC/install/20-disk.sh" "$DISK" --yes --no-luks
 echo "=== 30 bootstrap (both kernels, nix)"
 bash "$SRC/install/30-bootstrap.sh"
+echo "=== 35 nix (package manager)"
+bash "$SRC/install/35-nix.sh"
 echo "=== payload into the installed system"
 mkdir -p /mnt/opt
 cp -r "$SRC" /mnt/opt/parametral-src
