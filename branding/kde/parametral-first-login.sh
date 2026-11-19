@@ -29,7 +29,12 @@ if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
   plasma-apply-wallpaperimage /usr/share/wallpapers/Parametral/contents/images/2560x1440.png >/dev/null 2>&1 || true
 fi
 
-# 3. no screen locking on a fresh install: it interrupts the first session
+# 3. Konsole: our profile by default
+if command -v konsole >/dev/null 2>&1; then
+  kwriteconfig6 --file konsolerc --group Desktop\ Entry --key DefaultProfile Parametral.profile 2>/dev/null || true
+fi
+
+# 4. no screen locking on a fresh install: it interrupts the first session
 kwriteconfig6 --file kscreenlockerrc --group Daemon --key Autolock false 2>/dev/null || true
 
 date -u +%FT%TZ > "$marker"

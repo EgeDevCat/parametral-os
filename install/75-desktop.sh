@@ -34,6 +34,12 @@ while IFS= read -r f; do
   cp "$SRC/branding/icons/parametral-start.svg" "$f"
 done < <(find /usr/share/icons/breeze -name 'start-here-kde*.svg' 2>/dev/null)
 
+
+echo "==> Konsole (markalı profil + renk şeması)"
+install -d /usr/share/konsole
+install -m644 "$SRC/branding/kde/konsole/Parametral.colorscheme" /usr/share/konsole/
+install -m644 "$SRC/branding/kde/konsole/Parametral.profile" /usr/share/konsole/
+
 echo "==> first-login hook (launcher icon + wallpaper per account)"
 install -Dm755 "$SRC/branding/kde/parametral-first-login.sh" \
   /usr/local/bin/parametral-first-login

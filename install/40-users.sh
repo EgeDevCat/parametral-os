@@ -39,7 +39,7 @@ usermod -G "" ai
 install -d -o ai -g ai -m 0700 /home/ai
 install -d -o parametral -g parametral -m 0750 /var/lib/parametral
 install -d -o approver -g approver -m 0700 /var/lib/parametral
-install -d -o root -g root -m 0700 /var/lib/parametral/keys
+install -d -o root -g root -m 0755 /var/lib/parametral/keys
 
 if [ "$NONINTERACTIVE" = "1" ]; then
   echo "==> passwords: TEST MODE (operator/ai = 'parametral', service users locked)"
@@ -76,8 +76,13 @@ EOF
 echo "==> directory ownership for the OS layer"
 install -d -o root -g root -m 0755 /etc/parametral
 install -d -o root -g root -m 0755 /etc/parametral/policy
-install -d -o root -g root -m 0700 /etc/parametral/keys
+install -d -o root -g root -m 0755 /etc/parametral/keys
 install -d -o root -g root -m 0755 /etc/parametral
+
+# public keys must be readable by the service user (the oracle verifies with them);
+# anything ending in .sk or .key is the secret half and stays root-only.
+find /etc/parametral/keys -type f \( -name '*.sk' -o -name '*.key' \) -exec chmod 0600 {} + 2>/dev/null || true
+find /etc/parametral/keys -type f \( -name '*.pub' -o -name '*.sig' \) -exec chmod 0644 {} + 2>/dev/null || true
 
 echo "==> home permissions: other users cannot read each other"
 chmod 0700 /home/ai /home/operator

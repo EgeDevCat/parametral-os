@@ -11,6 +11,9 @@ User=parametral
 Group=parametral
 RuntimeDirectory=parametral
 RuntimeDirectoryMode=0700
+# Both units declare RuntimeDirectory=parametral; without Preserve, stopping either one
+# deletes the directory and takes the other service's socket with it.
+RuntimeDirectoryPreserve=yes
 ExecStart=/usr/local/bin/parametral-harddeny \
     --rules /etc/parametral/policy/hard_deny.v1.json \
     --pub /etc/parametral/keys/hard_deny.v1.pub \

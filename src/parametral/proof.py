@@ -201,7 +201,11 @@ def run_proof(state_dir: str | None = None, output_path: str | None = None,
                                if passed else "FAIL — see failed checks above"))
 
     report = "\n".join(lines) + "\n"
-    target = output_path or os.path.join(here, "proofs", "isolation-proof.txt")
+    # Default next to the *state*, not next to the installed code: the service runs as an
+    # unprivileged user and cannot write into the install tree.
+    default_root = os.environ.get("PARAMETRAL_STATE") or os.path.join(
+        os.path.expanduser("~"), ".local", "share", "parametral")
+    target = output_path or os.path.join(default_root, "proofs", "isolation-proof.txt")
     util.ensure_dir(os.path.dirname(target), 0o755)
     with open(target, "w", encoding="utf-8") as handle:
         handle.write(report)
