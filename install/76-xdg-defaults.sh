@@ -41,13 +41,11 @@ SingleClick=false
 Theme=$ICON_THEME
 
 [Mouse]
-cursorTheme=Parametral
 cursorSize=24
 EOF
 
 cat > /etc/xdg/kcminputrc <<'EOF'
 [Mouse]
-cursorTheme=Parametral
 cursorSize=24
 EOF
 
@@ -83,14 +81,14 @@ for ini in /etc/gtk-3.0/settings.ini /etc/gtk-4.0/settings.ini; do
 [Settings]
 gtk-theme-name=$GTK_THEME
 gtk-icon-theme-name=$ICON_THEME
-gtk-cursor-theme-name=Parametral
+gtk-cursor-theme-name=breeze
 gtk-cursor-theme-size=24
 gtk-font-name=Noto Sans 10
 EOF
 done
 
-# X11 default cursor for clients that ask for "default"
+# X11 default cursor: stock. Our Parametral theme stays installed but unselected.
 install -d /usr/share/icons/default
-printf '[Icon Theme]\nInherits=Parametral\n' > /usr/share/icons/default/index.theme
+printf '[Icon Theme]\nInherits=breeze\n' > /usr/share/icons/default/index.theme
 
 echo "==> done"

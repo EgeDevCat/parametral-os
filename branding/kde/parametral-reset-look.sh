@@ -14,8 +14,6 @@ kwriteconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage org.paramet
 kwriteconfig6 --file kdeglobals --group KDE --key widgetStyle Breeze
 kwriteconfig6 --file kdeglobals --group Icons --key Theme breeze-dark
 kwriteconfig6 --file plasmarc --group Theme --key name breeze-dark
-kwriteconfig6 --file kcminputrc --group Mouse --key cursorTheme Parametral
-kwriteconfig6 --file kcminputrc --group Mouse --key cursorSize 24
 kwriteconfig6 --file konsolerc --group "Desktop Entry" --key DefaultProfile Parametral.profile
 kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image \
   --group General --key Image /usr/share/wallpapers/Parametral/contents/images/2560x1440.png

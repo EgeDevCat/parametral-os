@@ -25,8 +25,8 @@ echo "==> cursor theme (Parametral, built from branding/cursors)"
 if [ -d "$SRC/branding/cursors/Parametral" ]; then
   rm -rf /usr/share/icons/Parametral
   cp -r "$SRC/branding/cursors/Parametral" /usr/share/icons/Parametral
-  install -d /usr/share/icons/default
-  printf '[Icon Theme]\nInherits=Parametral\n' > /usr/share/icons/default/index.theme
+  # Installed as an option only: the default pointer stays Breeze unless the user picks it.
+  printf '[Icon Theme]\nInherits=breeze\n' > /usr/share/icons/default/index.theme
 fi
 
 
