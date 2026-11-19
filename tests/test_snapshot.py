@@ -16,10 +16,12 @@ class SandboxSnapshotTest(unittest.TestCase):
 
         self.tmp = tempfile.mkdtemp(prefix="parametral-snap-")
         self.manager = SandboxManager(self.tmp, defaults={"memory_mb": 256})
-        self.meta = self.manager.create(name="snap")
-        self.sid = self.meta["sandbox_id"]
+        # check before creating: a skip raised in setUp does not run tearDown, so a
+        # half-created sandbox would leak into the next test
         if not self.manager.btrfs_available:
             self.skipTest("this state dir cannot make btrfs subvolumes")
+        self.meta = self.manager.create(name="snap")
+        self.sid = self.meta["sandbox_id"]
 
     def tearDown(self):
         import shutil
@@ -99,10 +101,10 @@ class DaemonSnapshotTest(unittest.TestCase):
 
     def setUp(self):
         self.client = self.harness.client()
-        self.sandbox = support.make_sandbox(self.harness, name="snapapi")
-        self.sid = self.sandbox["sandbox_id"]
         if not self.harness.daemon.sandboxes.btrfs_available:
             self.skipTest("no btrfs subvolume support in this state dir")
+        self.sandbox = support.make_sandbox(self.harness, name="snapapi")
+        self.sid = self.sandbox["sandbox_id"]
 
     def tearDown(self):
         try:
