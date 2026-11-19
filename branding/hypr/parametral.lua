@@ -105,6 +105,7 @@ hl.on("hyprland.start", function()
     -- hyprpaper 0.57 rejects its own IPC requests and leaves the screen flat;
     -- swaybg is the boring, working path for a static wallpaper
     hl.exec_cmd("swaybg -i /usr/share/wallpapers/Parametral/contents/images/2560x1440.png -m fill")
-    hl.exec_cmd("waybar -c /etc/parametral/hypr/waybar.jsonc -s /etc/parametral/hypr/waybar.css")
+    -- our own shell (Quickshell/QML). waybar stays in the tree as a fallback.
+    hl.exec_cmd("qs -p /usr/share/parametral/shell/shell.qml")
     hl.exec_cmd("/usr/local/bin/parametral-approvals")
 end)

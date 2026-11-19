@@ -12,7 +12,7 @@ SRC="${SRC:-/opt/parametral-src}"
 
 echo "==> Hyprland paketleri"
 pacman -S --noconfirm --needed \
-  hyprland swaybg hypridle hyprlock waybar fuzzel \
+  hyprland swaybg hypridle hyprlock waybar fuzzel quickshell \
   xdg-desktop-portal-hyprland polkit-kde-agent
 
 echo "==> Parametral oturum yapılandırması"
@@ -21,6 +21,15 @@ install -m 0644 "$SRC/branding/hypr/parametral.conf"  /etc/parametral/hypr/param
 install -m 0644 "$SRC/branding/hypr/waybar.jsonc"     /etc/parametral/hypr/waybar.jsonc
 install -m 0644 "$SRC/branding/hypr/waybar.css"       /etc/parametral/hypr/waybar.css
 install -Dm 0755 "$SRC/branding/hypr/parametral-launcher" /usr/local/bin/parametral-launcher
+
+echo "==> Parametral Shell (Quickshell/QML)"
+install -d /usr/share/parametral/shell
+install -m 0644 "$SRC/shell/shell.qml" /usr/share/parametral/shell/shell.qml
+
+# The session user must be able to read the config: a 0700 /etc/parametral makes Hyprland
+# start with "cannot open ...: Permission denied" and silently fall back to its defaults.
+chmod 755 /etc/parametral /etc/parametral/hypr
+chmod 644 /etc/parametral/hypr/* 2>/dev/null || true
 
 echo "==> Oturum girdisi (SDDM'de görünür)"
 install -d /usr/share/wayland-sessions
