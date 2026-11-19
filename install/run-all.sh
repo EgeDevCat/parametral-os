@@ -13,6 +13,8 @@ echo "=== 30 bootstrap (both kernels, nix)"
 bash "$SRC/install/30-bootstrap.sh"
 echo "=== 35 nix (package manager)"
 bash "$SRC/install/35-nix.sh"
+echo "=== 76 xdg defaults (theme, cursor, fonts)"
+bash "$SRC/install/76-xdg-defaults.sh"
 echo "=== payload into the installed system"
 mkdir -p /mnt/opt
 cp -r "$SRC" /mnt/opt/parametral-src

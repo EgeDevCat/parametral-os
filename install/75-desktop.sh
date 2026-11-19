@@ -20,6 +20,14 @@ install -d /usr/share/color-schemes
 install -m 0644 "$SRC/branding/kde/Parametral.colors" /usr/share/color-schemes/Parametral.colors
 
 
+echo "==> cursor theme (Parametral, built from branding/cursors)"
+if [ -d "$SRC/branding/cursors/Parametral" ]; then
+  rm -rf /usr/share/icons/Parametral
+  cp -r "$SRC/branding/cursors/Parametral" /usr/share/icons/Parametral
+  install -d /usr/share/icons/default
+  printf '[Icon Theme]\nInherits=Parametral\n' > /usr/share/icons/default/index.theme
+fi
+
 echo "==> KDE global theme (Parametral görünümü Sistem Ayarları'nda)"
 install -d /usr/share/plasma/look-and-feel
 rm -rf /usr/share/plasma/look-and-feel/org.parametral.desktop
