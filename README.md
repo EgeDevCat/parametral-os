@@ -1,3 +1,7 @@
+> **Parked 2026-11-20.** The scope changed to a Rust AI/MCP tool platform. This repository
+> stays as a working reference — see [PARKED.md](PARKED.md) for what works, what is open, and
+> how to resume. Nothing was deleted.
+
 <div align="center">
 
 <picture>
