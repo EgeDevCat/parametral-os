@@ -1,0 +1,13 @@
+{
+  "KPlugin": {
+    "Authors": [{ "Name": "Parametral OS" }],
+    "Category": "Navigation",
+    "Description": "Beş workspace tiki, 2 px cetvel üzerinde; aktif olan amber.",
+    "Id": "org.parametral.ruler",
+    "License": "MIT",
+    "Name": "Parametral Cetvel",
+    "Version": "1.0"
+  },
+  "KPackageStructure": "Plasma/Applet",
+  "X-Plasma-API-Minimum-Version": "6.0"
+}

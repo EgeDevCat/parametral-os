@@ -32,9 +32,11 @@ yapması gerekenleri ayırır; "bitti" demek için görüntü şart.
    IBM Plex Mono olmalı. Ayrıca `fc-match Inter` çıktısı aynı VM'den.
 3. **Panel:** 40 px üst plaka, `Parametral` Plasma teması, Breeze mavisi yok. 1280×800 ve
    2560×1440, dark + light; panel taşması yok.
-4. **Cetvel applet'i (T14):** stok `workspaces` widget'ı bizim imzamız değil. 5 tik,
-   pasif 6×2 `faint`, aktif 14×2 amber; panelin alt kenarında 2 px cetvel. Applet gelene
-   kadar KDE'de imza yok sayılır.
+4. **Cetvel applet'i (T14):** `branding/kde/plasmoids/org.parametral.ruler` yazıldı;
+   `/usr/share/plasma/plasmoids/` altına kopyalanmalı ve layout zaten
+   `panel.addWidget("org.parametral.ruler")` diyor. VM'de ilk açılışta applet yüklenmezse
+   Plasma 6 `org.kde.plasma.private.pager` import'unu ve `PagerModel.currentPage` API'sini
+   kontrol et; stok workspaces widget'ına geri dönme.
 5. **Kilit:** `contents/defaults` içinde `[kscreenlockerrc] Autolock=false`. Birincil masaüstü
    için bu bir güvenlik sapması; kullanıcı kararı olmadan açılmaz ama BOARD'a yazılmalı.
 6. **SDDM:** doğru şifre, yanlış şifre, caps-lock; 1280×800 + 2560×1440. Palet ve Inter.

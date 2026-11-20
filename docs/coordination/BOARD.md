@@ -19,7 +19,7 @@ kanıt yaz. `done`yu yalnız doğrulayan taraf yazar.
 | T10 | önce/sonra önizleme seti | A | doing | 1280/2560, L/D, boş/dolu | 1280 dolu + kilit + OSD var; 2560 boş/dolu ve açık mod EKSİK; 1280 karesi küçültülmüş |
 | T11 | check_visual.py + kör test K1–K3 | B | review | script eşikleri raporlar; K1–K3 tek satır | `scripts/check_visual.py`; 7/7 test; `REVIEW-T6.md` ölçümü; K1–K3 T10 bekliyor |
 | T12 | KDE Plasma birincil hat: token parity + SDDM + doğrulama | A/B | doing | KDE renk şemaları token'lardan; stock Breeze paleti yok; 1280/2560 L/D; AI approvals KDE'de | B: `gen_kde_theme.py` + 16/16 test, SDDM/Konsole/panel/splash token; A: VM görüntüsü + install/75 duvar kağıdı + 76 font — `REVIEW-T12.md` (blocked) |
-| T14 | KDE cetvel applet'i: 5 tik, 6×2 / aktif 14×2 | B/A | todo | stok workspaces değil; panel alt kenarında 2 px cetvel; 40 px panelde okunur | — |
+| T14 | KDE cetvel applet'i: 5 tik, 6×2 / aktif 14×2 | B/A | review | stok workspaces değil; panel alt kenarında 2 px cetvel; 40 px panelde okunur | B: `org.parametral.ruler` plasmoid + 18/18 KDE testi; A: `/usr/share/plasma/plasmoids/` kurulumu ve VM görüntüsü |
 | T13 | SFT iz şeması + AI olayları | B/A | todo | `audit.jsonl` türevi JSONL; gerçek alanlar; uydurma yok; şema testi | — |
 | T4 | docs/DESKTOP-HYPRLAND.md + README düzeltmesi | B | todo | belge gerçek durumu anlatıyor | — |
 | T5 | shell/*.qml "deneysel" işaretleme | B | todo | her dosyada başlık notu | — |

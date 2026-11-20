@@ -134,6 +134,9 @@ class LookAndFeel(unittest.TestCase):
     DEFAULTS = ROOT / "branding" / "kde" / "look-and-feel" / "org.parametral.desktop" / "contents" / "defaults"
     SPLASH = ROOT / "branding" / "kde" / "look-and-feel" / "org.parametral.desktop" / "contents" / "splash" / "Splash.qml"
     PANEL = ROOT / "branding" / "plasma-theme" / "Parametral" / "widgets" / "panel-background.svg"
+    RULER = ROOT / "branding" / "kde" / "plasmoids" / "org.parametral.ruler"
+    RULER_QML = RULER / "contents" / "ui" / "main.qml"
+    RULER_META = RULER / "metadata.json"
 
     def test_panel_is_one_40px_top_plate(self):
         text = self.LAYOUT.read_text()
@@ -161,6 +164,27 @@ class LookAndFeel(unittest.TestCase):
         for match in re.findall(r"#[0-9A-Fa-f]{6}", text):
             self.assertIn(match.upper(), allowed, f"splash colour {match} is not a token")
         self.assertIn('font.family: "Inter"', text)
+
+    def test_ruler_applet_is_the_signature(self):
+        qml = self.RULER_QML.read_text()
+        self.assertIn("activeWidth: 14", qml)
+        self.assertIn("idleWidth: 6", qml)
+        self.assertIn("tickHeight: 2", qml)
+        self.assertIn("PlasmaCore.Theme.highlightColor", qml)
+        self.assertIn("PlasmaCore.Theme.disabledTextColor", qml)
+        self.assertIn("PagerModel.VirtualDesktops", qml)
+        self.assertIn("pagerModel.changePage(index)", qml)
+        self.assertNotIn("#", qml, "the applet takes colours from the KDE scheme, not hex")
+        metadata = json.loads(self.RULER_META.read_text())
+        self.assertEqual(metadata["KPlugin"]["Id"], "org.parametral.ruler")
+        self.assertEqual(metadata["KPackageStructure"], "Plasma/Applet")
+        self.assertIn('panel.addWidget("org.parametral.ruler")', self.LAYOUT.read_text())
+
+    def test_panel_svg_has_a_ruler(self):
+        text = self.PANEL.read_text()
+        self.assertIn('<g id="bar">', text)
+        self.assertIn('height="2"', text)
+        self.assertIn('fill-opacity="0.14"', text)
 
     def test_panel_svg_is_token_coloured_and_12px(self):
         tokens = json.loads(TOKENS_PATH.read_text())["colour"]

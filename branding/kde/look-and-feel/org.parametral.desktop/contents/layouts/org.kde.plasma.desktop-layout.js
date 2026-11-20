@@ -29,6 +29,7 @@ panel.alignment = "center"
 // workspaces widget: stock dots and pills break the one signature. See T14.
 
 panel.addWidget("org.kde.plasma.kickoff")
+panel.addWidget("org.parametral.ruler")
 panel.addWidget("org.kde.plasma.icontasks")
 panel.addWidget("org.kde.plasma.marginsseparator")
 panel.addWidget("org.kde.plasma.systemtray")
