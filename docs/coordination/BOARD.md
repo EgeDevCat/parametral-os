@@ -5,36 +5,40 @@ kanıt yaz. `done`yu yalnız doğrulayan taraf yazar.
 
 | id | başlık | sahip | durum | kabul kriteri | kanıt |
 |---|---|---|---|---|---|
-| T7 | oturum: start-hyprland / XDG uyarılarını sıfırla | A | review | Hyprland açılışında siyah toast yok; oturum kendi config'iyle açılıyor | `docs/previews/T7-session-clean-1280x800-dark.png` · `start-hyprland` uyarısı 0 · `hyprctl -j binds` = 31 (bizim binds.lua) · XDG uyarısı yok (DesktopNames=Parametral) |
-| T8 | font: Inter + IBM Plex Mono + 16 px mark | A/B | review | `fc-match` Inter; Plex Mono kurulu; mark 16 px'te okunur | `fc-match Inter` → `Inter.ttc: "Inter"` · `fc-match "IBM Plex Mono"` → `IBMPlexMono-Regular.ttf` · 56 Inter dosyası · mark 16 px denetimi BEKLEMEDE (B) |
-| T0 | DESIGN.md + tokens (primaryText, yarıçap ölçeği) + çıta | B | doing | DESIGN.md'de her bölüm sayılı spec; tokens.json'da primaryText + colourLight; gen_theme.py + test güncel; `make test` OK | worktree `../pt-T0`, branch `feat/T0` |
-| T6 | bar: 40 px plaka + cetvel tikleri + saat hiyerarşisi + ikonlar | A | review | bar 40 px, workspace mavi yok, saat 17 / tarih 11, yüzdeler ikonlu | `T6-before-1280x800-dark.png` (56 px slab, mavi tik, 26 px saat) → `T6-after-1280x800-dark.png` (40 px plaka, amber 14×2 / gri 6×2 tik, 17/11 punto, Türkçe tarih) |
-| T1 | kilit: yanlış şifre + caps-lock durumları | A | review | ikisi de tasarlanmış, AA, Türkçe | `T1-locked` · `T1-wrong-password` ("Yetkilendirme hatası", kırmızı) · `T1-capslock` ("Caps Lock açık") · `T1-unlocked` (doğru şifre açıyor). KUSUR: panel 1280'de sağdan taşıyor ("Bilgisay…"), mavi TR çipi + mavi odak halkası, başlık medya widget'ı, saat yok |
-| T2 | OSD: ses/parlaklık tuş testi | A | todo | OSD görünüyor, paletli, 2 sn içinde kayboluyor | — |
-| T10 | önce/sonra önizleme seti (1280×800, 2560×1440, L/D, boş/dolu) | A | doing | her ekran için before/after, doğal çözünürlük | T1/T6/T7 setleri var; 2560×1440 + açık mod EKSİK |
-| T3 | light mod doğrulaması + iki çözünürlükte önizleme | A | todo | primaryText ile AA, iki çözünürlük | — (tokens'ta colourLight yok — T0 bekliyor) |
-| T11 | check_visual.py + kör test K1–K3 | B | doing | script eşikleri raporlar; K1–K3 tek satır sonuç | worktree `../pt-T0` |
+| T7 | oturum: start-hyprland / XDG uyarılarını sıfırla | A | review | açılışta siyah toast yok; oturum kendi config'iyle açılıyor | `docs/previews/T7-session-clean-1280x800-dark.png` · `hyprctl -j binds` = 31 (bizim binds.lua) · `start-hyprland` uyarısı 0 · XDG uyarısı 0 · fstab-generator rc=0 (duplicate `/.snapshots` silindi) |
+| T8 | font: Inter + IBM Plex Mono + 16 px mark | A/B | review | `fc-match` Inter; Plex Mono kurulu; mark 16 px'te okunur | `fc-match Inter` → `Inter.ttc: "Inter"` · `fc-match "IBM Plex Mono"` → `IBMPlexMono-Regular.ttf` · mark 16 px denetimi BEKLEMEDE (B) |
+| T0 | DESIGN.md + tokens (primaryText, yarıçap ölçeği) + çıta | B | doing | sayılı spec; primaryText + colourLight; gen_theme + test; `make test` OK | worktree `../pt-T0` — DESIGN.md yazıldı, tokens/tema/test güncellendi, check_visual.py EKSİK |
+| T6 | bar: 40 px plaka + cetvel tikleri + saat hiyerarşisi + ikonlar | A | review | bar 40 px, workspace mavi yok, saat 17 / tarih 11, yüzdeler ikonlu | `T6-before-1280x800-dark.png` (56 px slab, mavi tik, 26 px saat) → `T6-after-1280x800-dark.png` (40 px plaka + 2 px cetvel, amber 14×2 / gri 6×2, 17/11 punto, "20 Kasım 2026 Cuma") · 2560×1440'te de 40 px (ölçeklenmiyor) |
+| T1 | kilit: yanlış şifre + caps-lock durumları | A | review | ikisi de tasarlanmış, Türkçe, taşma yok | `T1-locked` · `T1-wrong-password` ("Yetkilendirme hatası") · `T1-capslock` ("Caps Lock açık") · `T1-unlocked`. KUSUR: mavi TR çipi + mavi odak halkası (secondary), başlık medya widget'ı, kilitte saat/tarih yok, "Caps Lock" İngilizce |
+| T2 | OSD: ses/parlaklık tuş testi | A | review | ses OSD görünüyor, paletli; parlaklık VM'de yok | `T2-volume-osd-1280x800-dark.png` (XF86AudioRaiseVolume → amber OSD, %55, 3 sn sonra kayboldu) · XF86MonBrightnessUp → HİÇ OSD yok (VM'de backlight yok, gerçek donanımda test edilecek) |
+| T3 | light mod doğrulaması + iki çözünürlükte önizleme | A | blocked | primaryText ile AA, iki çözünürlük | tokens'ta colourLight B'nin worktree'sinde; merge sonrası ölçülecek |
+| T10 | önce/sonra önizleme seti | A | doing | 1280/2560, L/D, boş/dolu | 1280 dolu + kilit + OSD var; 2560 boş/dolu ve açık mod EKSİK |
+| T11 | check_visual.py + kör test K1–K3 | B | doing | script eşikleri raporlar; K1–K3 tek satır | `../pt-T0` |
 | T4 | docs/DESKTOP-HYPRLAND.md + README düzeltmesi | B | todo | belge gerçek durumu anlatıyor | — |
-| T5 | shell/*.qml "deneysel" işaretleme | B | todo | her dosyada başlık notu + README satırı | — |
+| T5 | shell/*.qml "deneysel" işaretleme | B | todo | her dosyada başlık notu | — |
 
 ## Dosya kilidi
 
 | dosya | sahip | iş |
 |---|---|---|
 | docs/DESIGN.md, branding/tokens.json, scripts/gen_theme.py, tests/test_theme_tokens.py, scripts/check_visual.py | B | T0/T11 |
-| branding/noctalia/config.toml, branding/wallpapers/*, branding/hypr/*, install/*.sh | A | T6/T7/T8/T1 |
+| branding/noctalia/config.toml, branding/wallpapers/*, branding/hypr/*, scripts/make_wallpaper.py, install/*.sh | A | T6/T7/T8/T1 |
 
 ## A'nın VM'de bulduğu gerçekler (DESIGN.md sapma tablosuna girecek)
 
-- `/etc/fstab`'da ikinci bir `/.snapshots` satırı vardı (install/30'daki grep `subvol=@snapshots`
-  arıyordu, genfstab `subvol=/@snapshots` yazıyor) → her açılışta systemd-fstab-generator rc=1.
-  Düzeltildi (repo + VM).
-- Oturum `Hyprland` ile başlatılıyordu → Hyprland "without start-hyprland" uyarısı + siyah toast.
-  `start-hyprland` ile değişti; uwsm'in `--`'i yuttuğu ilk denemede compositor sessizce
-  autogenerated config'e düştü, çift `--` ile çözüldü.
+- **Kök neden: masaüstü 1280×800'de scale 2 ile çalışıyordu** (monitors.lua `scale = 2`), yani mantıksal
+  alan 640×400. Kilit panelinin "taşması", dev punto ve kırpılan düğmelerin hepsi buydu. Repo'daki
+  monitors.lua zaten `scale = 1` diyordu; VM'de eski kopya duruyordu — /etc/parametral/hypr/* senkron
+  edildi. Kilit artık 720 px panel, ekrana sığıyor.
+- `/etc/fstab`'da ikinci bir `/.snapshots` satırı vardı (install/30 `subvol=@snapshots` arıyordu,
+  genfstab `subvol=/@snapshots` yazıyor) → her açılışta systemd-fstab-generator rc=1. Düzeltildi.
+- Oturum `Hyprland` ile başlatılıyordu → "without start-hyprland" uyarısı + siyah toast. Artık
+  `uwsm start -e -D Parametral -- start-hyprland -- --config ...`; tek `--` ile compositor sessizce
+  autogenerated config'e düşüyordu.
 - `DesktopNames=Hyprland` + `-D Parametral` → "XDG_CURRENT_DESKTOP elle yönetiliyor" uyarısı.
   DesktopNames=Parametral.
-- `/etc/locale.conf` `LANG=en_US.UTF-8` yazıyordu → bar tarihi "20 November Friday". tr_TR.UTF-8.
+- `/etc/locale.conf` `LANG=en_US.UTF-8` → bar tarihi "20 November Friday". tr_TR.UTF-8.
 - Bar yüzeyi + 2 px cetvel Noctalia'da yok → plaka `scripts/make_wallpaper.py` içinde çiziliyor,
   bar `background_opacity = 0.0`.
-- Kilit ekranı 1280×800'de sağdan taşıyor; mavi (secondary) çip ve odak halkası kullanıyor.
+- Noctalia'da yüzde biçimi sabit ("55%"), punto tek widget'ta iki değer alamıyor (iki clock widget +
+  font_scale), workspace tikleri dikeyde ortalanıyor (cetvel çizgisiyle aynı hizada değil).
