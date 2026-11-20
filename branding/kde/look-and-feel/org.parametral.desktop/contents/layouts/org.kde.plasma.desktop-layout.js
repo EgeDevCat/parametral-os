@@ -5,8 +5,8 @@
 // with the gauge launcher, icon-only tasks, tray and clock.
 //
 // What this build actually honours, measured on Plasma 6.5 (Arch, 2026-11):
-//   panel.height            yes (≈64 px)
-//   panel.hiding            yes ("autohide": hidden until the pointer hits the edge)
+//   panel.height            yes (40 px)
+//   panel.hiding            yes ("none": always visible)
 //   panel.floating          accepted by the API and written to the config, but NOT rendered —
 //                           the panel stays edge-to-edge. Do not rely on it for an island look.
 //   panel.minimum/maxLength accepted, also not rendered while the panel fills the screen
@@ -17,24 +17,16 @@
 var panel = new Panel
 var panelScreen = panel.screen
 
-panel.location = "bottom"
-panel.hiding = "autohide"
-
-// 3 gridUnits ≈ 56 px at 96 dpi: tall enough for 32 px icons, still a bar and not a slab.
-panel.height = 2 * Math.ceil(gridUnit * 3 / 2)
-
-// floating + centred is what makes it read as a dock rather than a window frame edge
-panel.floating = true
+// One plate at the top, 40 px, always visible. This is not a dock: no autohide, no
+// ultrawide cap, no second surface. The wallpaper draws the plate; the panel sits on it.
+panel.location = "top"
+panel.hiding = "none"
+panel.height = 40
+panel.floating = false
 panel.alignment = "center"
 
-// On ultrawide screens an unconstrained dock runs the whole width and looks like a taskbar
-// again, so cap it at 16:9 like the stock template does with 21:9.
-var geo = screenGeometry(panelScreen)
-var maximumWidth = Math.ceil(geo.height * (16 / 9))
-if (geo.formFactor === "horizontal" && geo.width > maximumWidth) {
-    panel.minimumLength = maximumWidth
-    panel.maximumLength = maximumWidth
-}
+// The workspace ruler (5 ticks, 6×2 / active 14×2) is our own applet, not the stock
+// workspaces widget: stock dots and pills break the one signature. See T14.
 
 panel.addWidget("org.kde.plasma.kickoff")
 panel.addWidget("org.kde.plasma.icontasks")

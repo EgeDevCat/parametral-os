@@ -42,6 +42,7 @@ var lightOkInk = "#FFFFFF"
 var lightEdgeAlpha = 0.28
 var lightHairlineAlpha = 0.18
 var lightSelectionTint = 0.1
+var lightPrimaryTextStrong = "#7F5510"
 
 // ---- metrics --------------------------------------------------------------
 var radiusTick = 1

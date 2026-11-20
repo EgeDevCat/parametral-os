@@ -7,7 +7,7 @@ widgetStyle=Breeze
 SingleClick=false
 
 [plasmarc][Theme]
-name=breeze-dark
+name=Parametral
 
 [ksplashrc][KSplash]
 Theme=org.parametral.desktop

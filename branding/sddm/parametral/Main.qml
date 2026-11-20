@@ -22,23 +22,24 @@ Rectangle {
     property bool dark: true
 
     // palettes — amber accent is shared, everything else flips with `dark`
-    property color cBg:         dark ? "#0d0f12" : "#f7f2e8"
-    property color cInk:        dark ? "#f2ede4" : "#1a1a1e"
-    property color cSoft:       dark ? "#b9b1a4" : "#5c5852"
-    property color cMuted:      dark ? "#8e877b" : "#8a8378"
-    property color cMuted2:     dark ? "#7d766b" : "#a09788"
-    property color cCard:       dark ? "#191d24" : "#fffefb"
-    property color cCardBorder: dark ? "#343b45" : "#e4dbca"
-    property color cField:      dark ? "#101317" : "#ffffff"
-    property color cFieldBorder:dark ? "#2e343c" : "#e6ddcc"
-    property color cChip:       dark ? "#20242a" : "#f1e8d8"
-    property color cChipBorder: dark ? "#333a43" : "#e2d6bf"
-    property color cBorder:     dark ? "#31373f" : "#cfc3ad"
-    property color cHover:      dark ? "#242a31" : "#efe2c8"
-    property color cError:      dark ? "#e08a7a" : "#a2564a"
-    property color cBusy:       dark ? "#8a6a33" : "#d8b071"
-    property color cDot:        dark ? "#f7e6c2" : "#5a4718"
-    property color cOnAccent:   dark ? "#1a1509" : "#231c10"
+    // Token values only (branding/tokens.json); tests/test_kde_theme.py guards this block.
+    property color cBg:         dark ? "#0B0F14" : "#F4EFE6"
+    property color cInk:        dark ? "#E9E4D8" : "#1E2228"
+    property color cSoft:       dark ? "#9AA4B2" : "#5C5852"
+    property color cMuted:      dark ? "#7C8592" : "#625D55"
+    property color cMuted2:     dark ? "#7C8592" : "#625D55"
+    property color cCard:       dark ? "#1A2029" : "#EAE2D5"
+    property color cCardBorder: dark ? "#2A323C" : "#CFC3AD"
+    property color cField:      dark ? "#0B0F14" : "#F4EFE6"
+    property color cFieldBorder:dark ? "#2A323C" : "#CFC3AD"
+    property color cChip:       dark ? "#1A2029" : "#EAE2D5"
+    property color cChipBorder: dark ? "#2A323C" : "#CFC3AD"
+    property color cBorder:     dark ? "#2A323C" : "#CFC3AD"
+    property color cHover:      dark ? "#222B36" : "#EFE2C8"
+    property color cError:      dark ? "#D66056" : "#A2564A"
+    property color cBusy:       dark ? "#E0A93B" : "#8A5F14"
+    property color cDot:        dark ? "#E9E4D8" : "#1E2228"
+    property color cOnAccent:   dark ? "#1A150A" : "#1A150A"
     property string bgSource:   dark ? "background-dark.png" : "background.png"
     property string glowSource: dark ? "logo-glow-dark.png" : "logo-glow.png"
 
@@ -70,7 +71,7 @@ Rectangle {
             id: clock
             text: Qt.formatTime(new Date(), "HH:mm")
             color: root.cInk
-            font.family: "DejaVu Sans"
+            font.family: "Inter"
             font.weight: Font.ExtraLight
             font.pixelSize: 56 * root.u
         }
@@ -78,7 +79,7 @@ Rectangle {
             id: dateText
             text: root.trDate(new Date())
             color: root.cMuted
-            font.family: "DejaVu Sans"
+            font.family: "Inter"
             font.weight: Font.Light
             font.pixelSize: 16 * root.u
         }
@@ -107,7 +108,7 @@ Rectangle {
         Text {
             text: root.dark ? "Açık tema" : "Koyu tema"
             color: themePointer.containsMouse ? root.cInk : root.cSoft
-            font.family: "DejaVu Sans"
+            font.family: "Inter"
             font.weight: Font.Light
             font.pixelSize: 15 * root.u
 
@@ -124,7 +125,7 @@ Rectangle {
         Text {
             text: "Kapat"
             color: offPointer.containsMouse ? root.cInk : root.cSoft
-            font.family: "DejaVu Sans"
+            font.family: "Inter"
             font.weight: Font.Light
             font.pixelSize: 15 * root.u
 
@@ -141,7 +142,7 @@ Rectangle {
         Text {
             text: "Yeniden"
             color: rebootPointer.containsMouse ? root.cInk : root.cSoft
-            font.family: "DejaVu Sans"
+            font.family: "Inter"
             font.weight: Font.Light
             font.pixelSize: 15 * root.u
 
@@ -164,7 +165,7 @@ Rectangle {
         anchors.bottomMargin: 42 * root.u
         text: "Parametral OS"
         color: root.cMuted
-        font.family: "DejaVu Sans"
+        font.family: "Inter"
         font.weight: Font.Light
         font.pixelSize: 16 * root.u
     }
@@ -213,7 +214,7 @@ Rectangle {
             text: "Parametral"
             anchors.horizontalCenter: parent.horizontalCenter
             color: root.cInk
-            font.family: "DejaVu Sans"
+            font.family: "Inter"
             font.weight: Font.ExtraLight
             font.pixelSize: 52 * root.u
             font.letterSpacing: 1.2
@@ -246,7 +247,7 @@ Rectangle {
                     text: "Hoş geldiniz"
                     anchors.horizontalCenter: parent.horizontalCenter
                     color: root.cSoft
-                    font.family: "DejaVu Sans"
+                    font.family: "Inter"
                     font.weight: Font.Light
                     font.pixelSize: 24 * root.u
                 }

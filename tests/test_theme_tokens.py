@@ -127,6 +127,7 @@ class Contrast(unittest.TestCase):
             ("muted", "surface", 4.5),
             ("faint", "surface", 4.5),
             ("primaryText", "surface", 4.5),
+            ("primaryTextStrong", "card", 4.5),
             ("danger", "surface", 4.5),
             ("onPrimary", "primary", 4.5),
             ("dangerInk", "danger", 4.5),
@@ -136,7 +137,7 @@ class Contrast(unittest.TestCase):
             self.assert_pair(self.light, fg, bg, minimum, "light")
 
     def test_light_has_two_ambers(self):
-        """primary is a fill; primaryText is the only amber allowed as text."""
+        """primary is a fill; primaryText/Strong are the amber text roles."""
         fill = contrast(self.light["primary"], self.light["surface"])
         text = contrast(self.light["primaryText"], self.light["surface"])
         self.assertLess(fill, 4.5, f"light primary ({fill:.2f}:1) must not be usable as text")
@@ -251,8 +252,8 @@ class NoctaliaPalette(unittest.TestCase):
         "on_hover": ("colour", "text"),
     }
     LIGHT = {
-        # Noctalia v2 has no text-only primary role, so `primary` carries primaryText there.
-        "primary": ("light", "primaryText"),
+        # Noctalia v2 has no text-only primary role; primary carries the on-card amber text.
+        "primary": ("light", "primaryTextStrong"),
         "on_primary": ("light", "onPrimary"),
         "secondary": ("light", "muted"),
         "on_secondary": ("light", "surface"),

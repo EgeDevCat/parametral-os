@@ -27,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TOKENS = ROOT / "branding" / "tokens.json"
 
-AMBER = {"#E0A93B", "#B8862B", "#8A5F14"}
+AMBER = {"#E0A93B", "#B8862B", "#8A5F14", "#7F5510"}
 NEAR = 24
 AMBER_NEAR = 40
 BLACK_MAX = 8

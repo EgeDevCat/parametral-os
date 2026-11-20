@@ -169,7 +169,8 @@ Kapı komutu ve çıktısı review dosyasına yapıştırılır.
 | `light.muted` | `#5C5852` | surface | **6,17:1** | ikincil |
 | `light.faint` | `#625D55` | surface | **5,70:1** | meta |
 | `light.primary` | `#B8862B` | surface | **2,83:1** | **yalnız dolgu** |
-| `light.primaryText` | `#8A5F14` | surface | **4,92:1** | amber **metin/ikon/çizgi** |
+| `light.primaryText` | `#8A5F14` | surface | **4,92:1** | amber **metin/ikon/çizgi** (yüzey) |
+| `light.primaryTextStrong` | `#7F5510` | card | **5,09:1** | amber metin kart/buton üstünde |
 | `light.onPrimary` | `#1A150A` | primary | **5,61:1** | dolgu üstü metin |
 | `light.danger` | `#A2564A` | surface | **4,62:1** | red |
 | `light.ok` | `#4F7A3F` | surface | **4,38:1** | **yalnız işaret/nokta** (metin değil) |
@@ -177,6 +178,8 @@ Kapı komutu ve çıktısı review dosyasına yapıştırılır.
 
 - Açık mod "karanlığın tersi" değildir; iki amber'i olan ayrı bir temadır.
 - `primary` (#B8862B) metin olarak **kullanılamaz**; metin `primaryText` (#8A5F14).
+- `primaryText` kart/buton (#EAE2D5) üstünde 4,38:1 kalır; orada `primaryTextStrong`
+  (#7F5510 = 5,09:1) kullanılır. İki amber metin, tek amber dolgu.
 - `onPrimary` açıkta `#1A150A`'dır. `#FFF8EC` primary üstünde **3,07:1** — AA değil.
 - `light.ok` metin olarak kullanılmaz (4,38:1). Yeşil yalnız "doğrulandı" işaretidir.
 
@@ -334,7 +337,8 @@ Algoritma (T11'de uygulanır):
 1. PNG'yi RGB'ye çöz; alfa varsa `bg` üstüne bindir.
 2. Her pikseli en yakın token rengine ata (RGB Öklid; eşik 24/255). Duvar kağıdı bölgesi
    `--surface desktop` dışında sayılmaz.
-3. `amber`: `amber`/`light.primary`/`light.primaryText` kümesine 24/255'ten yakın pikseller.
+3. `amber`: `amber`/`light.primary`/`light.primaryText`/`light.primaryTextStrong` kümesine
+   24/255'ten yakın pikseller.
 4. `siyah`: `max(r,g,b) < 24`.
 5. `kenar_boslugu`: UI yüzeyinde içerik maskesinin (token rengine yakın olmayan pikseller)
    ekran kenarına uzaklığı; bar için bar plakasının üst/sol/sağ kenarı.
@@ -382,7 +386,7 @@ denetçi sapmanın dürüstlüğünü kontrol eder, güzelliğini değil.
 
 | yüzey | spec | gerçek | neden | geçici mi |
 |---|---|---|---|---|
-| açık mod amber metin | `primaryText` #8A5F14 ayrı token | Noctalia v2'de text-only primary rolü yok; `primary` = #8A5F14 | palet şeması | kalıcı; upstream issue |
+| açık mod amber metin | `primaryText` #8A5F14 ayrı token | Noctalia v2'de text-only primary rolü yok; `primary` = #7F5510 (`primaryTextStrong`) | surface_container üstünde #8A5F14 4,38:1 kalıyor | kalıcı; upstream issue |
 | açık mod amber dolgu | `primary` #B8862B dolgu | Noctalia'da #B8862B dolgu yok | aynı şema | kalıcı |
 | bar plakası | `surface` token, shell çizer | duvar kağıdına gömülü 40 px plaka | Noctalia bar zemini şeffaf | geçici; upstream |
 | bar workspace sayısı | 5 tik (boşlar pasif) | 3 tik görünür | Noctalia boş workspace'i gizliyor | geçici; config |
@@ -443,7 +447,8 @@ branding/tokens.json
 - [ ] 420/480 px, yastık 16, satır 40, başlık 32, yarıçap 12.
 - [ ] Beş durum + AI "model/gateway/oracle yok" ekranları gerçek veriden.
 - [ ] Tek gölge; glow yok.
-- [ ] Açık modda metin amber'i `primaryText`; `primary` yalnız dolgu.
+- [ ] Açık modda metin amber'i `primaryText`; kart/buton üstünde `primaryTextStrong`;
+      `primary` yalnız dolgu.
 
 ### 15.3 Launcher
 
@@ -470,8 +475,12 @@ branding/tokens.json
 Kullanıcı kararı 2026-11-20: KDE Plasma birincil masaüstü; Hyprland/Noctalia ikincil/deneysel.
 KDE "başka bir tema" değil, aynı Ölçüm Plakası'nın Plasma karşılığıdır.
 
-- [ ] `branding/kde/Parametral.colors` ve `ParametralLight.colors` **token'lardan** üretilir;
-      elle hex yok. Renk şeması ↔ `tokens.json` eşitliği test edilir.
+- [ ] `branding/kde/Parametral.colors` ve `ParametralLight.colors` **token'lardan** üretilir
+      (`scripts/gen_kde_theme.py`); elle hex yok. `tests/test_kde_theme.py` eşitlik + AA kontrolü.
+- [ ] `kdeglobals-snippet.ini` de üretilir: `font=Inter`, `fixed=IBM Plex Mono`; Noto Sans yok.
+- [ ] `install/75-desktop.sh` **yeni** duvar kağıtlarını kurar (`2560x1440.png`,
+      `2560x1440-light.png`), eski `parametral-*.png` değil.
+- [ ] SDDM `Main.qml` renkleri token kümesinden; `DejaVu Sans` yerine Inter.
 - [ ] Stock Breeze paleti, mavi vurgu, stock duvar kağıdı, stock logo kalmaz. `Breeze` yalnız
       ikon fallback'i olabilir; palet olamaz.
 - [ ] Panel: yükseklik **40 px**, üst boşluk 6, yan 8, iç yastık 10, küme arası 6, ikon 16.
@@ -479,7 +488,8 @@ KDE "başka bir tema" değil, aynı Ölçüm Plakası'nın Plasma karşılığı
 - [ ] Kickoff/launcher mark **16 px**, amber değil; amber yalnız aktif tik.
 - [ ] Saat 17/24, tarih 11/16 mono, `20 Kasım 2026 Cuma`; `%40` biçimi.
 - [ ] SDDM: Parametral tema, aynı palet, doğru şifre + yanlış şifre durumu.
-- [ ] Konsole `Parametral.colorscheme` token'lardan; ANSI mavi veri, UI mavisi değil.
+- [ ] Konsole `Parametral.colorscheme`: bg/fg/amber/ok/danger token'larla eşit; ANSI mavi veri,
+      UI mavisi değil.
 - [ ] AI approvals + snapshot penceresi KDE oturumunda çalışır; `pkexec` ajanı gerçekten yanıtlar.
 - [ ] 1280×800 + 2560×1440, light + dark, boş/dolu/hata; `check_visual` temiz.
 - [ ] KDE oturumu ile Hyprland/Noctalia aynı anda çalışmaz (çift bar yok).

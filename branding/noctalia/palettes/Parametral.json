@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "_comment": "Projection of branding/tokens.json for Noctalia v5. Contrast measured with WCAG 2.1 relative luminance. Noctalia v2 has no text-only primary role, so light.primary carries primaryText (#8A5F14, 4.92:1) instead of the #B8862B fill (2.83:1); see docs/DESIGN.md, Sapma Kaydı. Terminal ANSI blue is data, not a UI role.",
+  "_comment": "Projection of branding/tokens.json for Noctalia v5. Contrast measured with WCAG 2.1 relative luminance. Noctalia v2 has no text-only primary role, so light.primary carries primaryTextStrong (#7F5510, 5.09:1 on card) instead of the #B8862B fill (2.83:1); see docs/DESIGN.md, Sapma Kaydı. Terminal ANSI blue is data, not a UI role.",
   "dark": {
     "primary": "#E0A93B",
     "on_primary": "#1A150A",
@@ -48,7 +48,7 @@
     }
   },
   "light": {
-    "primary": "#8A5F14",
+    "primary": "#7F5510",
     "on_primary": "#1A150A",
     "secondary": "#5C5852",
     "on_secondary": "#F4EFE6",

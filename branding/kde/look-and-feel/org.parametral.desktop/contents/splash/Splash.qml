@@ -14,7 +14,7 @@ Rectangle {
     property int stage: 0
     property bool ready: false
 
-    color: "#0F141A"
+    color: "#0B0F14"
 
     // Warm halo behind the mark. A gradient Rectangle drew a visible disc edge; the same
     // pre-blurred glow the login screen uses fades out properly.
@@ -51,6 +51,7 @@ Rectangle {
             text: "Parametral"
             color: "#E9E4D8"
             font.pixelSize: 30
+            font.family: "Inter"
             font.letterSpacing: 1.4
             font.weight: Font.DemiBold
             anchors.horizontalCenter: parent.horizontalCenter
@@ -60,6 +61,7 @@ Rectangle {
             text: "OS"
             color: "#9AA4B2"
             font.pixelSize: 13
+            font.family: "Inter"
             font.letterSpacing: 6
             anchors.horizontalCenter: parent.horizontalCenter
         }
