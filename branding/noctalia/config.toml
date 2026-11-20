@@ -89,12 +89,14 @@ style                = "regular"
 show_labels          = false
 show_icons           = false
 pill_scale           = 0.06
-inactive_pill_size   = 3.6
+inactive_pill_size   = 2.7
 active_pill_size     = 7.0
 capsule_radius       = 1.0
 focused_color        = "primary"
-occupied_color       = "outline"
-empty_color          = "outline_variant"
+# inactive ticks have to read as marks, not as a dark seam: muted is 7.3:1 on surface,
+# outline_variant was 1.4:1 and the ticks disappeared at 1280.
+occupied_color       = "on_surface_variant"
+empty_color          = "on_surface_variant"
 urgent_color         = "error"
 change_color_on_hover = false
 separator            = ""

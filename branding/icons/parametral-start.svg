@@ -13,9 +13,10 @@
     <line x1="39.4" y1="24" x2="43.4" y2="24"/>
   </g>
 
-  <!-- amber arc: the "live" segment of the dial -->
+  <!-- the "live" segment of the dial, in text colour: amber belongs to the screen's one live
+       signal (the active workspace tick), never to the mark, or every bar carries two ambers -->
   <path d="M34.6 13.4 A15 15 0 0 1 38.6 21.2" fill="none"
-        stroke="#E0A93B" stroke-width="3.6" stroke-linecap="round"/>
+        stroke="#E9E4D8" stroke-width="3.6" stroke-linecap="round"/>
 
   <!-- needle + hub -->
   <line x1="24" y1="24" x2="30.5" y2="17.5" stroke="#F2EDE4" stroke-width="3"
