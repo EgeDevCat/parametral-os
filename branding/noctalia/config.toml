@@ -29,8 +29,10 @@ fill_mode   = "crop"
 transition  = ["fade"]
 directory   = "/usr/share/wallpapers/Parametral/contents/images"
 
+# current.png is written by /usr/local/bin/parametral-wallpaper for this screen's resolution:
+# the plate drawn into the wallpaper only lines up with the bar when nothing scales it.
 [wallpaper.default]
-path = "/usr/share/wallpapers/Parametral/contents/images/2560x1440.png"
+path = "/run/parametral/wallpaper.png"
 
 [lockscreen]
 enabled            = true
@@ -87,8 +89,8 @@ style                = "regular"
 show_labels          = false
 show_icons           = false
 pill_scale           = 0.06
-inactive_pill_size   = 1.8
-active_pill_size     = 3.5
+inactive_pill_size   = 3.6
+active_pill_size     = 7.0
 capsule_radius       = 1.0
 focused_color        = "primary"
 occupied_color       = "outline"

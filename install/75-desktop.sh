@@ -7,10 +7,15 @@ SRC="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "==> wallpapers"
 install -d /usr/share/wallpapers/Parametral/contents/images
-install -m 0644 "$SRC/branding/wallpapers/parametral-dark.png" \
-  /usr/share/wallpapers/Parametral/contents/images/2560x1440.png
-install -m 0644 "$SRC/branding/wallpapers/parametral-light.png" \
-  /usr/share/wallpapers/Parametral/contents/images/2560x1440-light.png
+# one file per resolution: the bar plate is drawn into the wallpaper, so the file the shell uses
+# has to be the screen's own size (see branding/hypr/parametral-wallpaper)
+for size in 2560x1440 2560x1440-light 1920x1080 1920x1080-light 1280x800 1280x800-light; do
+  install -m 0644 "$SRC/branding/wallpapers/$size.png" \
+    "/usr/share/wallpapers/Parametral/contents/images/$size.png"
+done
+install -m 0755 "$SRC/branding/hypr/parametral-wallpaper" /usr/local/bin/parametral-wallpaper
+# per-session wallpaper copy: the image tree stays root-owned, the shell reads this one
+printf 'd /run/parametral 1777 root root -\n' > /usr/lib/tmpfiles.d/parametral-wallpaper.conf
 cat > /usr/share/wallpapers/Parametral/metadata.json <<'EOF'
 {"KPlugin": {"Id": "Parametral", "Name": "Parametral"}, "X-KDE-PluginInfo-Name": "Parametral"}
 EOF
