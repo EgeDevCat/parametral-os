@@ -1,75 +1,73 @@
 # REVIEW T6 — bar: 40 px plaka + cetvel tikleri + saat hiyerarşisi
 
-Tarih: 2026-11-20 12:45 · Denetleyen: B · Görüntüler:
-`T6-before-1280x800-dark.png`, `T6-after-1280x800-dark.png`, `T6-after-2560x1440-dark.png`
+Tarih: 2026-11-20 13:15 · Denetleyen: B · Durum: **review — 22/30, done değil**
+Görüntüler: `T6-before-1280x800-dark.png`, `T6-after-1280x800-dark.png` (12:46),
+`T6-after-2560x1440-dark.png` (12:30)
 Spec: `docs/DESIGN.md` §1.1, §1.2, §3.2, §4.3, §10, §15.1
 Ölçüm: `python3 scripts/check_visual.py <png> --surface bar`
 
-## Ölçüm — 2560×1440 (native, gerçek 1× kanıt)
+## Ölçüm — 1280×800 (native, güncel)
 
 ```
-bar               {'found': True, 'top': 7, 'bottom': 46, 'left': 15, 'right': 2545,
-                   'height': 40, 'width': 2531}
-amber_piksel_orani 0.018%  (<= 1.2%)
-palet_disi_orani   0.052%  (<= 5.0%)
-siyah_orani        0.003%  (<= 35.0%)
-kenar_boslugu      {'left': 15, 'top': 7, 'right': 14, 'bottom': 1393}
-bar_yuksekligi     40  (hedef 40) ✓
-bar_ust_boslugu    7   (hedef 6, ±1) ✓
-failures           amber-tick
+bar               {'found': True, 'top': 7, 'bottom': 46, 'left': 15, 'right': 1265,
+                   'height': 40, 'width': 1251}
+amber_piksel_orani 0.064%  (<= 1.2%)
+palet_disi_orani   0.110%  (<= 5.0%)
+siyah_orani        0.005%  (<= 35.0%)
+kenar_boslugu      {'left': 15, 'top': 7, 'right': 14}
+bar_yuksekligi     40  ✓
+bar_ust_boslugu    7   (±1) ✓
+amber tik          14 px ✓
+failures           yok
 ```
 
-Plaka, yükseklik, kenar, palet ve siyah eşikleri **geçti**. Kalan kod kusuru tik ölçüsü.
+Plaka, cetvel, tik ölçüsü, kenar ve palet **geçti**. `wallpaper = ekran boyu` düzeltmesi
+(`ecc2b42`) doğru sonuç vermiş.
 
-## Ölçüm — 1280×800
+## Ölçüm — 2560×1440 (12:30, eski)
 
 ```
-bar               {'found': True, 'top': 3, 'bottom': 25, 'left': 0, 'right': 1279,
-                   'height': 23, 'width': 1280}
-bar_yuksekligi     23  (hedef 40)
-bar_ust_boslugu    3   (hedef 6)
-failures           edge, bar-height, bar-top-gap, amber-tick
+bar 40 px · amber %0.018 · palet %0.051 · siyah %0.003 · kenar 15/14
+amber tik 7 px  → failures: amber-tick
 ```
 
-Bu görüntü **native 1280 render değil**: 2560×1440 karenin 0,5'e küçültülmüş hâli.
-Plaka 40→23 px, tik 7→5 px, pasif tikler ölçekte birleşiyor. Kanıt olarak kullanılamaz;
-"küçültmesiz" kuralı ihlal. Native 1280 çekimi gerekir (veya "detay" olarak etiketlenir).
+Bu kare **tik düzeltmesinden önce** (config 12:46'da `active_pill_size 3.5 → 7.0` oldu).
+Kanıt olarak kullanılamaz; 2560 yeniden çekilmeli. A'nın panodaki "2560'ta 14×2" iddiası
+bu dosyayla doğrulanmıyor.
 
 ## Bulgular
 
 | bölge | kusur | neden (spec) | puan |
 |---|---|---|---|
-| bar / 1280 kanıt | 1280×800 görüntüsü 2560 karenin küçültülmüş hâli; plaka 23 px, tik 5 px, 5 tik 3'e düşüyor. | §12/2 "doğal çözünürlük, küçültmesiz"; §10. | 1 |
-| bar / aktif tik | 2560'ta aktif tik **7 × 2 px** (x 40–46); spec **14 × 2**. | §1.1 imza; `check_visual` → `amber-tick`. | 1 |
-| bar / pasif tik | Pasif tik **4 px**, çekirdek renk `#212830` (≈ `line`); surface üstünde ≈1,4:1. Spec 6 × 2, `faint` #7C8592 (4,82:1). | §1.1; §8/8 non-text ≥3:1. | 1 |
-| bar / durum | `55%`, `90%` — yüzde sonda. `%55`, `%90` olmalı. | §3.2. | 1 |
-| bar / ikon | Kontrol merkezi glifi 16 px'te okunmuyor (kare + çapraz + nokta); diğerleri ince çizgi. | §8/7 tek stroke seti, 16 px'te okunur. | 2 |
-| bar / mark | 2560'ta görünür mark ≈13 px + 12 tikli detay; 1280'de bulanık. 16 px net varyant doğrulanmadı. | §2.3; T8 "mark 16 px denetimi BEKLEMEDE". | 2 |
-| bar / amber | Aktif tik + mark üzerinde 2 px amber yay: iki canlı amber. Mark `text`/`muted` olmalı. | §4.3. | 2 |
-| kanıt | Light, boş, hata ve AI "yok" ekranı yok; K1–K3 yapılamaz. | §12/2, §15.1, T10. | 1 |
-| saat / tarih | 2560'ta `12:30` 17 px medium, tarih 11 px muted; `20 Kasım 2026 Cuma` doğru. | §3.2. | 3 |
-| cetvel çizgisi | 2 px, plakanın alt kenarında, içeriden başlıyor; 40 px plaka ile aynı dil. | §1.1. | 3 |
-| duvar kağıdı | Izgara + kadran, metin yok, amber yok, kontrast düşük. | §5.7. | 3 |
-| plaka rengi | Ölçülen `#12171E` = `surface`. | §4.1. | 3 |
+| kanıt / 2560 | 2560 karesi 12:30 tarihli; aktif tik 7 px ölçülüyor; config düzeltmesi sonrası yeniden çekilmedi. | §12/2 doğal çözünürlük + güncel kanıt | 1 |
+| bar / durum | `55%`, `90%` — yüzde sonda. `%55`, `%90` olmalı. | §3.2 | 1 |
+| bar / ikon | Kontrol merkezi glifi 16 px'te okunmuyor (kare + çapraz + nokta). | §8/7 | 2 |
+| bar / mark | 16 px mark varyantı hâlâ doğrulanmadı; 12 tikli detay 16 px'te ince. | §2.3, T8 | 2 |
+| bar / amber | Mark üzerinde küçük amber yay + aktif tik: iki canlı amber. | §4.3 | 2 |
+| kanıt | Light, boş, hata, AI "yok" yok; K1–K3 yapılamaz. | §15.1, T10 | 1 |
+| saat / tarih | 17 px medium + 11 px muted; `20 Kasım 2026 Cuma` doğru. | §3.2 | 3 |
+| plaka / cetvel | 40 px, üst 6 (±1), yan 8 (±), 2 px cetvel, 5 tik. | §1.1/§1.2 | 3 |
+| duvar kağıdı | Izgara + kadran, metin yok, amber yok, düşük kontrast. | §5.7 | 3 |
+| plaka rengi | `#12171E` = `surface`. | §4.1 | 3 |
 
 ## Çıta
 
-1 Hiyerarşi **3** · 2 Izgara **2** · 3 Tipografi **[KAPI] 2** · 4 Renk **[KAPI] 2** ·
+1 Hiyerarşi **3** · 2 Izgara **3** · 3 Tipografi **[KAPI] 2** · 4 Renk **[KAPI] 2** ·
 5 Durumlar **1** · 6 Dil **2** · 7 İkon **2** · 8 Erişilebilirlik **2** · 9 Dürüstlük **[KAPI] 2** ·
-10 Kimlik **3** → **21/30**
+10 Kimlik **3** → **22/30**
 
-Alt sınır 24. Kapılar 0 değil ama toplam yetmiyor. **done değil.**
+Alt sınır 24. **done değil.** Kalan üç iş bunu 24'e taşır: `%55` biçimi, kontrol merkezi
+ikonu, 2560'ın yeniden çekilmesi. Light/boş/hata ve AI "yok" ekranları ayrıca T10/T3.
 
 ## Düzeltme sırası (A)
 
-1. Aktif tik 14 × 2; pasif 6 × 2 ve `faint` #7C8592 (şu an 4 px / `line`).
-2. Native 1280×800 çekimi: `monitors.lua` scale 1 + 1280×800 wallpaper; küçültme yok.
-3. `%55` / `%90` biçimi.
-4. Kontrol merkezi ikonunu 16 px'te okunur tek stroke glifle değiştir.
-5. Mark'ı `text`/`muted` yap; amber yalnız aktif tikte kalsın; 16 px varyantı göster.
-6. Light + boş + hata + AI "yok" ekranları (T10/T3); sonra `check_visual` tekrar.
+1. `%55` / `%90` biçimi (Noctalia yüzde widget'ı sabit biçim veriyorsa sapma kaydı + kendi
+   widget'ı).
+2. Kontrol merkezi ikonunu 16 px'te okunur tek stroke glifle değiştir.
+3. 2560×1440'ı yeni config ile yeniden çek; `check_visual` temiz olsun.
+4. Mark'ı 16 px'e indir; amber yayı kaldır (amber yalnız aktif tik).
+5. Light + boş + hata + AI "yok" (T10/T3); sonra K1–K3.
 
 ## Kör test
 
-K1–K3: **yapılmadı** — light ve AI boş ekranı yok; 2560 CachyOS yan yana değil. Kanıtsız
-"geçti" yazılmaz.
+K1–K3: **yapılmadı** — light ve AI boş ekranı yok. Kanıtsız "geçti" yazılmaz.
