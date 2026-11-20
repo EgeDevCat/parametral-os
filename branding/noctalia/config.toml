@@ -102,12 +102,12 @@ separator            = ""
 [widget.clock]
 type       = "clock"
 format     = "{:%H:%M}"
-font_scale = 0.58
+font_scale = 0.92
 
 [widget.clockdate]
 type       = "clock"
 format     = "{:%d %B %Y %A}"
-font_scale = 0.40
+font_scale = 0.34
 
 [widget.volume]
 type       = "volume"

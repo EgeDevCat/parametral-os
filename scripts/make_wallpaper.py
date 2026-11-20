@@ -64,7 +64,9 @@ def bar_geometry(width: int, height: int, bars: dict):
     """The plate the Noctalia bar reserves: same numbers as branding/noctalia/config.toml."""
     thickness = int(bars.get("thickness", 40))
     edge = int(bars.get("marginEdge", 6))
-    ends = int(bars.get("marginEnds", 8 if width <= 1280 else 12))
+    # 8 at every width: the shell has one margin_ends value, and a plate drawn at 12 while the
+    # widgets sit at 8 would put the plate edge and the content on different lines.
+    ends = int(bars.get("marginEnds", 8))
     radius = int(bars.get("radius", 12))
     return dict(x0=ends, y0=edge, x1=width - ends, y1=edge + thickness, radius=radius,
                 thickness=thickness)
