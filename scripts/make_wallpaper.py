@@ -47,7 +47,9 @@ def load_tokens():
 
 
 def palette(tokens, mode: str):
-    light = tokens.get("colourLight", {})
+    # tokens.json carries "colour" (dark) and "light"; a missing light key falls back to the
+    # values below only so an older tokens file still renders.
+    light = tokens.get("light", tokens.get("colourLight", {}))
     if mode == "dark":
         source = tokens["colour"]
     else:
@@ -81,16 +83,18 @@ def compose(size, mode, tokens, plate: bool = True):
     # ---- 1 px grid: scale for the eye, not a pattern to read ---------------
     grid = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     gd = ImageDraw.Draw(grid)
+    # light paper shows the major grid as blocky tiles, so it gets a lighter hand
+    fine, major = (12, 22) if mode == "dark" else (8, 13)
     step = max(32, w // 48)
     for x in range(0, w, step):
-        gd.line([(x, 0), (x, h)], fill=pal["muted"] + (12,))
+        gd.line([(x, 0), (x, h)], fill=pal["muted"] + (fine,))
     for y in range(0, h, step):
-        gd.line([(0, y), (w, y)], fill=pal["muted"] + (12,))
+        gd.line([(0, y), (w, y)], fill=pal["muted"] + (fine,))
     every = step * 5
     for x in range(0, w, every):
-        gd.line([(x, 0), (x, h)], fill=pal["muted"] + (22,))
+        gd.line([(x, 0), (x, h)], fill=pal["muted"] + (major,))
     for y in range(0, h, every):
-        gd.line([(0, y), (w, y)], fill=pal["muted"] + (22,))
+        gd.line([(0, y), (w, y)], fill=pal["muted"] + (major,))
     img = Image.alpha_composite(img.convert("RGBA"), grid).convert("RGB")
 
     # ---- the dial: instrument, low contrast, no glow, no amber -------------
@@ -129,11 +133,14 @@ def compose(size, mode, tokens, plate: bool = True):
     # Applied BEFORE the plate: the plate is a UI surface and must be the token colour exactly,
     # edge to edge. A vignette over it gave the bar a gradient face, and a measurement tool that
     # looks for #12171E stopped finding the plate at all.
-    vign = Image.new("L", (w, h), 0)
-    vd = ImageDraw.Draw(vign)
-    vd.ellipse([-w // 3, -h // 3, w + w // 3, h + h // 3], fill=255)
-    vign = vign.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.15)))
-    img = Image.composite(img, Image.new("RGB", (w, h), pal["bg"]), vign)
+    # Dark only: on a flat light page the blurred mask quantises into visible patches instead of
+    # a gradient, and paper does not vignette anyway.
+    if mode == "dark":
+        vign = Image.new("L", (w, h), 0)
+        vd = ImageDraw.Draw(vign)
+        vd.ellipse([-w // 3, -h // 3, w + w // 3, h + h // 3], fill=255)
+        vign = vign.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.15)))
+        img = Image.composite(img, Image.new("RGB", (w, h), pal["bg"]), vign)
 
     # ---- the plate and its ruler ------------------------------------------
     if plate:

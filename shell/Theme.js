@@ -24,7 +24,7 @@ var hairlineAlpha = 0.14
 var selectionTint = 0.07
 
 // ---- light ----------------------------------------------------------------
-var lightBg = "#F4EFE6"
+var lightBg = "#EFE7D9"
 var lightSurface = "#F4EFE6"
 var lightCard = "#EAE2D5"
 var lightCardHover = "#EFE2C8"
