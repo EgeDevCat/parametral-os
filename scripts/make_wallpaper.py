@@ -125,6 +125,16 @@ def compose(size, mode, tokens, plate: bool = True):
 
     img = Image.alpha_composite(img.convert("RGBA"), layer).convert("RGB")
 
+    # ---- vignette: keeps the middle quiet where windows live ---------------
+    # Applied BEFORE the plate: the plate is a UI surface and must be the token colour exactly,
+    # edge to edge. A vignette over it gave the bar a gradient face, and a measurement tool that
+    # looks for #12171E stopped finding the plate at all.
+    vign = Image.new("L", (w, h), 0)
+    vd = ImageDraw.Draw(vign)
+    vd.ellipse([-w // 3, -h // 3, w + w // 3, h + h // 3], fill=255)
+    vign = vign.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.15)))
+    img = Image.composite(img, Image.new("RGB", (w, h), pal["bg"]), vign)
+
     # ---- the plate and its ruler ------------------------------------------
     if plate:
         g = bar_geometry(w, h, bars)
@@ -141,13 +151,6 @@ def compose(size, mode, tokens, plate: bool = True):
         pd.rectangle([g["x0"] + inset, rr_y, g["x1"] - inset, rr_y + 1],
                      fill=pal["muted"] + (46,))
         img = Image.alpha_composite(img.convert("RGBA"), plate_layer).convert("RGB")
-
-    # ---- vignette: keeps the middle quiet where windows live ---------------
-    vign = Image.new("L", (w, h), 0)
-    vd = ImageDraw.Draw(vign)
-    vd.ellipse([-w // 3, -h // 3, w + w // 3, h + h // 3], fill=255)
-    vign = vign.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.15)))
-    img = Image.composite(img, Image.new("RGB", (w, h), pal["bg"]), vign)
     return img
 
 
