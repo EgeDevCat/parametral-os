@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "_comment": "Parametral palette for Noctalia v5. Contrast measured with WCAG 2.1 relative luminance; light primary is #8A600C, not #B8862B, because #B8862B is only 2.83:1 on the light surface and fails AA for text.",
+  "_comment": "Projection of branding/tokens.json for Noctalia v5. Contrast measured with WCAG 2.1 relative luminance. Noctalia v2 has no text-only primary role, so light.primary carries primaryText (#8A5F14, 4.92:1) instead of the #B8862B fill (2.83:1); see docs/DESIGN.md, Sapma Kaydı. Terminal ANSI blue is data, not a UI role.",
   "dark": {
     "primary": "#E0A93B",
     "on_primary": "#1A150A",
-    "secondary": "#6C9BC4",
+    "secondary": "#9AA4B2",
     "on_secondary": "#0B0F14",
     "tertiary": "#7EAE68",
-    "on_tertiary": "#10140F",
+    "on_tertiary": "#0B0F14",
     "error": "#D66056",
     "on_error": "#1A0B09",
     "surface": "#0B0F14",
@@ -16,7 +16,7 @@
     "on_surface_variant": "#9AA4B2",
     "outline_variant": "#2A323C",
     "shadow": "#000000",
-    "hover": "#232B36",
+    "hover": "#222B36",
     "on_hover": "#E9E4D8",
     "terminal": {
       "background": "#0B0F14",
@@ -36,7 +36,7 @@
         "white": "#C9C4BA"
       },
       "bright": {
-        "black": "#6B7280",
+        "black": "#7C8592",
         "red": "#E8897F",
         "green": "#9BCB84",
         "yellow": "#F0BE5B",
@@ -48,10 +48,10 @@
     }
   },
   "light": {
-    "primary": "#8A600C",
-    "on_primary": "#FFF8EC",
-    "secondary": "#3D6B93",
-    "on_secondary": "#FFFFFF",
+    "primary": "#8A5F14",
+    "on_primary": "#1A150A",
+    "secondary": "#5C5852",
+    "on_secondary": "#F4EFE6",
     "tertiary": "#4F7A3F",
     "on_tertiary": "#FFFFFF",
     "error": "#A2564A",
@@ -67,15 +67,15 @@
     "terminal": {
       "background": "#F4EFE6",
       "foreground": "#1E2228",
-      "cursor": "#8A600C",
-      "cursor_text": "#FFF8EC",
+      "cursor": "#8A5F14",
+      "cursor_text": "#FFFFFF",
       "selection_bg": "#EAE2D5",
       "selection_fg": "#1E2228",
       "normal": {
         "black": "#1E2228",
         "red": "#A2564A",
         "green": "#4F7A3F",
-        "yellow": "#8A600C",
+        "yellow": "#8A5F14",
         "blue": "#3D6B93",
         "magenta": "#7A5A93",
         "cyan": "#2F7A6B",

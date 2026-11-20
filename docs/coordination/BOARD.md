@@ -3,17 +3,23 @@
 Her iş için tek satır. İş almadan önce burayı oku; aldığın işi `doing` yap; bitince `review` +
 kanıt yaz. `done`yu yalnız doğrulayan taraf yazar.
 
+> **2026-11-20 kullanıcı kararı:** KDE Plasma birincil masaüstü hattı. Hyprland + UWSM +
+> Noctalia ikincil/deneysel kalır (kod silinmez, autostart yok). **T12, T6'dan önce.**
+> Hermes: KDE'yi de kapsama al; stock Breeze paleti, SDDM ve KDE uygulamaları dahil.
+
 | id | başlık | sahip | durum | kabul kriteri | kanıt |
 |---|---|---|---|---|---|
-| T7 | oturum: start-hyprland / XDG uyarılarını sıfırla | A | review | açılışta siyah toast yok; oturum kendi config'iyle açılıyor | `docs/previews/T7-session-clean-1280x800-dark.png` · `hyprctl -j binds` = 31 (bizim binds.lua) · `start-hyprland` uyarısı 0 · XDG uyarısı 0 · fstab-generator rc=0 (duplicate `/.snapshots` silindi) |
-| T8 | font: Inter + IBM Plex Mono + 16 px mark | A/B | review | `fc-match` Inter; Plex Mono kurulu; mark 16 px'te okunur | `fc-match Inter` → `Inter.ttc: "Inter"` · `fc-match "IBM Plex Mono"` → `IBMPlexMono-Regular.ttf` · mark 16 px denetimi BEKLEMEDE (B) |
-| T0 | DESIGN.md + tokens (primaryText, yarıçap ölçeği) + çıta | B | doing | sayılı spec; primaryText + colourLight; gen_theme + test; `make test` OK | worktree `../pt-T0` — DESIGN.md yazıldı, tokens/tema/test güncellendi, check_visual.py EKSİK |
-| T6 | bar: 40 px plaka + cetvel tikleri + saat hiyerarşisi + ikonlar | A | review | bar 40 px, workspace mavi yok, saat 17 / tarih 11, yüzdeler ikonlu | `T6-before-1280x800-dark.png` (56 px slab, mavi tik, 26 px saat) → `T6-after-1280x800-dark.png` (40 px plaka + 2 px cetvel, amber 14×2 / gri 6×2, 17/11 punto, "20 Kasım 2026 Cuma") · 2560×1440'te de 40 px (ölçeklenmiyor) |
+| T7 | oturum: start-hyprland / XDG uyarılarını sıfırla | A | review | açılışta siyah toast yok; oturum kendi config'iyle açılıyor | `T7-session-clean-1280x800-dark.png` · `hyprctl -j binds` = 31 · `start-hyprland` uyarısı 0 · XDG uyarısı 0 · fstab-generator rc=0 |
+| T8 | font: Inter + IBM Plex Mono + 16 px mark | A/B | review | `fc-match` Inter; Plex Mono kurulu; mark 16 px'te okunur | VM: `fc-match Inter` → `Inter.ttc` · `fc-match "IBM Plex Mono"` → `IBMPlexMono-Regular.ttf` · mark 16 px denetimi BEKLEMEDE (B); host'ta font yok |
+| T0 | DESIGN.md + tokens (primaryText, yarıçap ölçeği) + çıta | B | review | sayılı spec; primaryText + colourLight; gen_theme + test; `make test` OK | `docs/DESIGN.md`; `branding/tokens.json`; 18/18 theme testi; `shell/Theme.js` üretildi |
+| T6 | bar: 40 px plaka + cetvel tikleri + saat hiyerarşisi + ikonlar | A | review | bar 40 px, workspace mavi yok, saat 17 / tarih 11, yüzdeler ikonlu | 2560: plaka 40 px ✓, cetvel 2 px ✓, 5 tik (1+4) ✓; KUSUR: aktif tik 7×2, pasif 4 px/`line`, `55%`, 1280 karesi küçültülmüş — `REVIEW-T6.md` **21/30** |
 | T1 | kilit: yanlış şifre + caps-lock durumları | A | review | ikisi de tasarlanmış, Türkçe, taşma yok | `T1-locked` · `T1-wrong-password` ("Yetkilendirme hatası") · `T1-capslock` ("Caps Lock açık") · `T1-unlocked`. KUSUR: mavi TR çipi + mavi odak halkası (secondary), başlık medya widget'ı, kilitte saat/tarih yok, "Caps Lock" İngilizce |
-| T2 | OSD: ses/parlaklık tuş testi | A | review | ses OSD görünüyor, paletli; parlaklık VM'de yok | `T2-volume-osd-1280x800-dark.png` (XF86AudioRaiseVolume → amber OSD, %55, 3 sn sonra kayboldu) · XF86MonBrightnessUp → HİÇ OSD yok (VM'de backlight yok, gerçek donanımda test edilecek) |
-| T3 | light mod doğrulaması + iki çözünürlükte önizleme | A | blocked | primaryText ile AA, iki çözünürlük | tokens'ta colourLight B'nin worktree'sinde; merge sonrası ölçülecek |
-| T10 | önce/sonra önizleme seti | A | doing | 1280/2560, L/D, boş/dolu | 1280 dolu + kilit + OSD var; 2560 boş/dolu ve açık mod EKSİK |
-| T11 | check_visual.py + kör test K1–K3 | B | doing | script eşikleri raporlar; K1–K3 tek satır | `../pt-T0` |
+| T2 | OSD: ses/parlaklık tuş testi | A | review | ses OSD görünüyor, paletli; parlaklık VM'de yok | `T2-volume-osd-1280x800-dark.png` (amber OSD, %55, 3 sn sonra kayboldu) · XF86MonBrightnessUp → OSD yok (VM'de backlight yok) |
+| T3 | light mod doğrulaması + iki çözünürlükte önizleme | A | blocked | primaryText ile AA, iki çözünürlük | tokens `colourLight` B'nin worktree'sinde; merge sonrası ölçülecek |
+| T10 | önce/sonra önizleme seti | A | doing | 1280/2560, L/D, boş/dolu | 1280 dolu + kilit + OSD var; 2560 boş/dolu ve açık mod EKSİK; 1280 karesi küçültülmüş |
+| T11 | check_visual.py + kör test K1–K3 | B | review | script eşikleri raporlar; K1–K3 tek satır | `scripts/check_visual.py`; 7/7 test; `REVIEW-T6.md` ölçümü; K1–K3 T10 bekliyor |
+| T12 | KDE Plasma birincil hat: token parity + SDDM + doğrulama | A/B | todo | KDE renk şemaları token'lardan; stock Breeze paleti yok; 1280/2560 L/D; AI approvals KDE'de | — |
+| T13 | SFT iz şeması + AI olayları | B/A | todo | `audit.jsonl` türevi JSONL; gerçek alanlar; uydurma yok; şema testi | — |
 | T4 | docs/DESKTOP-HYPRLAND.md + README düzeltmesi | B | todo | belge gerçek durumu anlatıyor | — |
 | T5 | shell/*.qml "deneysel" işaretleme | B | todo | her dosyada başlık notu | — |
 
