@@ -342,6 +342,10 @@ Algoritma (T11'de uygulanır):
 
 Eşik aşılırsa "güzel" tartışılmaz; düzeltilir.
 
+Ek ölçümler (aynı script): `bar-yuksekligi` = 40 (±1), `bar-ust-boslugu` = 6 (±1),
+`amber-tick` = en geniş amber koşu ≥ 12 px (aktif tik 14). `siyah` = `max(r,g,b) ≤ 8`
+(saf siyah); token `bg` #0B0F14 sayılmaz — yoksa karanlık tema yanlışlıkla "kara delik" olur.
+
 ---
 
 ## 11. Kör test (A yapar, B değerlendirir, kullanıcı hakem)
@@ -460,6 +464,40 @@ branding/tokens.json
 - [ ] §2.1'deki üç satır gerçek veriden; `bağlı` uydurulmaz.
 - [ ] Display yalnız başlıkta; gövde 13/20; mono değerler tabular.
 - [ ] Tek amber metin önerisi; amber dolgu yok.
+
+### 15.6 KDE Plasma — birincil hat (T12)
+
+Kullanıcı kararı 2026-11-20: KDE Plasma birincil masaüstü; Hyprland/Noctalia ikincil/deneysel.
+KDE "başka bir tema" değil, aynı Ölçüm Plakası'nın Plasma karşılığıdır.
+
+- [ ] `branding/kde/Parametral.colors` ve `ParametralLight.colors` **token'lardan** üretilir;
+      elle hex yok. Renk şeması ↔ `tokens.json` eşitliği test edilir.
+- [ ] Stock Breeze paleti, mavi vurgu, stock duvar kağıdı, stock logo kalmaz. `Breeze` yalnız
+      ikon fallback'i olabilir; palet olamaz.
+- [ ] Panel: yükseklik **40 px**, üst boşluk 6, yan 8, iç yastık 10, küme arası 6, ikon 16.
+      Panel tek plaka; cetvel çizgisi + 5 tik (6×2 / aktif 14×2) KDE panelinde de aynı.
+- [ ] Kickoff/launcher mark **16 px**, amber değil; amber yalnız aktif tik.
+- [ ] Saat 17/24, tarih 11/16 mono, `20 Kasım 2026 Cuma`; `%40` biçimi.
+- [ ] SDDM: Parametral tema, aynı palet, doğru şifre + yanlış şifre durumu.
+- [ ] Konsole `Parametral.colorscheme` token'lardan; ANSI mavi veri, UI mavisi değil.
+- [ ] AI approvals + snapshot penceresi KDE oturumunda çalışır; `pkexec` ajanı gerçekten yanıtlar.
+- [ ] 1280×800 + 2560×1440, light + dark, boş/dolu/hata; `check_visual` temiz.
+- [ ] KDE oturumu ile Hyprland/Noctalia aynı anda çalışmaz (çift bar yok).
+- [ ] `make test` OK; `docs/previews/T12-*.png` + `REVIEW-T12.md`.
+
+### 15.7 SFT izleri (T13)
+
+AI yüzeyi aynı zamanda SFT veri kaynağıdır. Ekranda görünen her durum, kayıtta aynı adla ve
+gerçek değerle durur; uydurma etiket veri setini zehirler.
+
+- [ ] Kayıt `audit.jsonl` / `v1.audit.query` türevidir; elle yazılmış örnek yok.
+- [ ] Alanlar: `ts` (ISO, saniye), `surface`, `state` (`ok|no_model|no_gateway|no_oracle|error|
+      offline|overload`), `model`, `gateway`, `oracle`, `audit_head`, `action`, `outcome`,
+      `locale` (`tr_TR`), `viewport`.
+- [ ] Eksik değer `null`; `bağlı`/`hazır` yalnız gerçek probe başarılıysa.
+- [ ] Sır/anahtar/parola yok; kullanıcı metni redakte edilir.
+- [ ] Her ekran görüntüsü bir `event_id` ile eşlenir; review'da ikisi birlikte.
+- [ ] Şema testi: zorunlu alanlar, enum, `null` disiplini; `tests/test_sft_trace.py`.
 
 ---
 
