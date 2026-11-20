@@ -199,13 +199,14 @@ def amber_runs(width: int, height: int, px: bytes, ambers: list[tuple[int, int, 
     return best
 
 
-def measure(path: Path, surface: str) -> dict:
+def measure(path: Path, surface: str, mode: str = "dark") -> dict:
     width, height, px = decode_png(path)
     tokens = token_colours()
     ambers = amber_colours()
     tokens_json = json.loads(TOKENS.read_text())
-    surface_rgb = hex_rgb(tokens_json["colour"]["surface"])
-    background_rgb = hex_rgb(tokens_json["colour"]["bg"])
+    palette = tokens_json["colour"] if mode == "dark" else tokens_json["light"]
+    surface_rgb = hex_rgb(palette["surface"])
+    background_rgb = hex_rgb(palette["bg"])
     bar = bar_region(width, height, px, surface_rgb, background_rgb)
 
     if surface == "bar" and bar["found"]:
@@ -255,6 +256,7 @@ def measure(path: Path, surface: str) -> dict:
     result = {
         "file": str(path),
         "surface": surface,
+        "mode": mode,
         "size": [width, height],
         "bar": bar,
         "amber_piksel_orani": round(100 * amber / max(1, region_pixels), 3),
@@ -320,7 +322,13 @@ def main(argv: list[str]) -> int:
     if surface not in SURFACES:
         print(f"unknown surface {surface}; use {', '.join(sorted(SURFACES))}")
         return 2
-    result = measure(path, surface)
+    mode = "dark"
+    if "--mode" in argv:
+        mode = argv[argv.index("--mode") + 1]
+    if mode not in {"dark", "light"}:
+        print("mode must be dark or light")
+        return 2
+    result = measure(path, surface, mode)
     if "--json" in argv:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:

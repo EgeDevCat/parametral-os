@@ -177,6 +177,8 @@ Kapı komutu ve çıktısı review dosyasına yapıştırılır.
 
 - Açık mod "karanlığın tersi" değildir; iki amber'i olan ayrı bir temadır.
 - `primary` (#B8862B) metin olarak **kullanılamaz**; metin `primaryText` (#8A5F14).
+- Açık modda plaka `surface` sayfadan en az **1,15:1** ayrışır; mark/ikon plaka üstünde
+  en az **3:1** (mark `text` rengini kullanır, açıkta #1E2228).
 - `onPrimary` açıkta `#1A150A`'dır. `#FFF8EC` primary üstünde **3,07:1** — AA değil.
 - `light.ok` metin olarak kullanılmaz (4,38:1). Yeşil yalnız "doğrulandı" işaretidir.
 
@@ -319,7 +321,7 @@ havada duran wordmark · glassmorphism · neon · gradient mesh · "düşünüyo
 B yazar; Python **stdlib + zlib**, bağımlılık yok. PNG'yi kendisi çözer.
 
 ```
-python3 scripts/check_visual.py <png> [--surface bar|panel|launcher|desktop] [--json]
+python3 scripts/check_visual.py <png> [--surface bar|panel|launcher|desktop] [--mode dark|light] [--json]
 ```
 
 | metrik | eşik | kapsam |
@@ -382,6 +384,7 @@ denetçi sapmanın dürüstlüğünü kontrol eder, güzelliğini değil.
 
 | yüzey | spec | gerçek | neden | geçici mi |
 |---|---|---|---|---|
+| açık mod aktif tik | `primary` #B8862B dolgu | `primaryText` #8A5F14 (4,88:1) | #B8862B plaka üstünde 2,83:1, non-text 3:1 altı | kalıcı; iki amber |
 | açık mod amber metin | `primaryText` #8A5F14 ayrı token | Noctalia v2'de text-only primary rolü yok; `primary` = #8A5F14 | palet şeması | kalıcı; upstream issue |
 | açık mod amber dolgu | `primary` #B8862B dolgu | Noctalia'da #B8862B dolgu yok | aynı şema | kalıcı |
 | bar plakası | `surface` token, shell çizer | duvar kağıdına gömülü 40 px plaka | Noctalia bar zemini şeffaf | geçici; upstream |

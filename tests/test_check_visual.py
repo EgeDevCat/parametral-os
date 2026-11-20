@@ -123,6 +123,17 @@ class Measure(unittest.TestCase):
         self.assertIn("black", result["failures"])
         self.assertGreater(result["siyah_orani"], 35.0)
 
+    def test_light_mode_finds_the_light_plate(self):
+        canvas = Canvas(1280, 800, "#EFE7D9")
+        canvas.rect(8, 6, 1272, 46, "#F4EFE6")
+        canvas.rect(30, 40, 44, 42, "#B8862B")
+        canvas.save(self.path)
+        result = cv.measure(self.path, "bar", "light")
+        self.assertEqual(result["mode"], "light")
+        self.assertEqual(result["bar"]["height"], 40)
+        self.assertEqual(result["bar"]["top"], 6)
+        self.assertNotIn("bar-height", result["failures"])
+
     def test_png_roundtrip(self):
         canvas = good_bar()
         canvas.save(self.path)
