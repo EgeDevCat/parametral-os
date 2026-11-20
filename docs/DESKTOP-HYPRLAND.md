@@ -72,9 +72,11 @@ The session name is the desktop entry's file name, not a path.
 
 ## Known gaps
 
-- No notification daemon and no polkit agent in this session yet. Quickshell ships both
-  (`Services.Notifications`, `Services.Polkit`); until they are wired, `pkexec` prompts (the
-  snapshot app's rollback, for example) have nobody to ask.
+- No polkit agent that actually answers yet. `shell/polkit.qml` is written and its agent
+  registers (`isRegistered` is true), but `pkexec` in the VM still answers "No authentication
+  agent found", so the end-to-end path is unverified. Until it is fixed, the snapshot app's
+  rollback (`pkexec`) has nobody to ask in this session — use the KDE session for that.
+- No notification daemon (`Quickshell.Services.Notifications`) yet.
 - No settings app: changing the palette or the bar means editing files and reloading
   (`hyprctl reload`, `systemctl --user restart qsbar`).
 - The bar's tray island only appears when there are tray items; there is no overflow menu yet.
