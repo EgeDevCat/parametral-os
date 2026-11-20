@@ -88,6 +88,8 @@ hl.bind(mod .. " + Return", hl.dsp.exec_cmd("konsole"))
 hl.bind(mod .. " + E",      hl.dsp.exec_cmd("dolphin"))
 hl.bind(mod .. " + Space",  hl.dsp.exec_cmd("/usr/local/bin/parametral-launcher"))
 hl.bind(mod .. " + Q",      hl.dsp.window.close())
+hl.bind(mod .. " + L",      hl.dsp.exec_cmd("hyprlock --config /etc/parametral/hypr/hyprlock.conf"))
+hl.bind(mod .. " + Escape", hl.dsp.exec_cmd("qs -p /usr/share/parametral/shell/shell.qml ipc call powermenu toggle"))
 hl.bind(mod .. " + M",      hl.dsp.exit())
 
 hl.bind(mod .. " + left",  hl.dsp.focus({ direction = "left" }))

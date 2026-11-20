@@ -14,6 +14,11 @@ notify() {
     fi
 }
 
+# our own surface first: the launcher is part of the desktop, not a borrowed dmenu
+if [ -x /usr/bin/qs ] && [ -f /usr/share/parametral/shell/launcher.qml ]; then
+    exec qs -p /usr/share/parametral/shell/launcher.qml
+fi
+
 for candidate in "fuzzel --dmenu" "wofi --show drun" "rofi -show drun" "bemenu-run"; do
     name=${candidate%% *}
     if command -v "$name" >/dev/null 2>&1; then

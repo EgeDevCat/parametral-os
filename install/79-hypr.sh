@@ -24,7 +24,9 @@ install -Dm 0755 "$SRC/branding/hypr/parametral-launcher" /usr/local/bin/paramet
 
 echo "==> Parametral Shell (Quickshell/QML)"
 install -d /usr/share/parametral/shell
-install -m 0644 "$SRC/shell/shell.qml" /usr/share/parametral/shell/shell.qml
+install -m 0644 "$SRC/shell/shell.qml"    /usr/share/parametral/shell/shell.qml
+install -m 0644 "$SRC/shell/launcher.qml" /usr/share/parametral/shell/launcher.qml
+install -m 0644 "$SRC/branding/hypr/hyprlock.conf" /etc/parametral/hypr/hyprlock.conf
 
 # The session user must be able to read the config: a 0700 /etc/parametral makes Hyprland
 # start with "cannot open ...: Permission denied" and silently fall back to its defaults.
@@ -37,7 +39,7 @@ cat > /usr/share/wayland-sessions/parametral.desktop <<'EOF'
 [Desktop Entry]
 Name=Parametral
 Comment=Hyprland ile Parametral OS oturumu
-Exec=Hyprland --config /etc/parametral/hypr/parametral.conf
+Exec=Hyprland --config /etc/parametral/hypr/parametral.lua
 Type=Application
 DesktopNames=Hyprland
 EOF

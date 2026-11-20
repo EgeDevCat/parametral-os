@@ -2,6 +2,10 @@
 //
 // Opens on the launcher button or SUPER+Space. Lists desktop entries, filters as you type,
 // Enter launches the selected one, Escape closes. Written for Quickshell 0.3.x.
+//
+// Layout note: the list is a fixed-height Flickable with an explicit row height. Letting a
+// ColumnLayout size itself from delegates made the card grow past the bottom of the screen
+// and spaced rows ~100px apart.
 
 import QtQuick
 import QtQuick.Layouts
@@ -16,12 +20,15 @@ ShellRoot {
     readonly property color card:  "#1A2029"
     readonly property color text:  "#E9E4D8"
     readonly property color muted: "#9AA4B2"
+    readonly property color faint: "#6B7280"
     readonly property color amber: "#E0A93B"
+    readonly property color edge:  Qt.rgba(0.878, 0.663, 0.231, 0.28)
+
+    readonly property int rowHeight: 44
+    readonly property int maxRows: 8
 
     property string query: ""
     property int selected: 0
-
-    // all applications, read once per open
     property var entries: []
 
     Process {
@@ -58,7 +65,7 @@ ShellRoot {
             if (q !== "" && !key.includes(q)) continue;
             seen.add(key);
             out.push(e);
-            if (out.length === 8) break;
+            if (out.length === maxRows) break;
         }
         return out;
     }
@@ -71,8 +78,6 @@ ShellRoot {
         Qt.quit();
     }
 
-    // A full-screen layer with a scrim, and the card placed by arithmetic. Anchoring the
-    // PanelWindow to the top edge alone kept the surface on the bottom edge in this build.
     PanelWindow {
         id: window
         anchors {
@@ -88,7 +93,7 @@ ShellRoot {
 
         Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(0, 0, 0, 0.35)
+            color: Qt.rgba(0.02, 0.03, 0.04, 0.55)
 
             MouseArea {
                 anchors.fill: parent
@@ -99,36 +104,65 @@ ShellRoot {
         Rectangle {
             id: card
             anchors.horizontalCenter: parent.horizontalCenter
-            y: Math.round(parent.height * 0.16)
-            width: Math.min(620, parent.width - 80)
-            height: column.implicitHeight + 28
+            y: Math.round(parent.height * 0.18)
+            width: Math.min(640, parent.width - 80)
+            height: column.implicitHeight + 24
             radius: 18
             color: root.bg
-            border.color: Qt.rgba(0.878, 0.663, 0.231, 0.35)
+            border.color: root.edge
             border.width: 1
 
-            ColumnLayout {
+            Column {
                 id: column
-                anchors {
-                    left: parent.left
-                    right: parent.right
-                    top: parent.top
-                    margins: 14
-                }
-                spacing: 10
+                width: card.width - 24
+                x: 12
+                y: 12
+                spacing: 8
 
+                // ---- search field -------------------------------------
                 Rectangle {
-                    Layout.fillWidth: true
-                    height: 46
+                    width: parent.width
+                    height: 48
                     radius: 12
                     color: root.card
 
+                    Item {
+                        id: mark
+                        width: 26
+                        height: 26
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        Canvas {
+                            anchors.fill: parent
+                            onPaint: {
+                                const ctx = getContext("2d")
+                                ctx.reset()
+                                const c = width / 2, r = width * 0.42
+                                ctx.strokeStyle = root.amber
+                                ctx.lineWidth = 1.5
+                                ctx.beginPath()
+                                for (let i = 0; i < 12; i++) {
+                                    const a = (Math.PI * 2 * i) / 12 - Math.PI / 2
+                                    ctx.moveTo(c + Math.cos(a) * r * 0.78, c + Math.sin(a) * r * 0.78)
+                                    ctx.lineTo(c + Math.cos(a) * r, c + Math.sin(a) * r)
+                                }
+                                ctx.stroke()
+                                ctx.beginPath()
+                                ctx.arc(c, c, r * 0.6, 0, Math.PI * 2)
+                                ctx.stroke()
+                            }
+                        }
+                    }
+
                     TextInput {
                         id: input
-                        anchors.fill: parent
-                        anchors.leftMargin: 14
+                        anchors.left: mark.right
+                        anchors.leftMargin: 12
+                        anchors.right: parent.right
                         anchors.rightMargin: 14
-                        verticalAlignment: TextInput.AlignVCenter
+                        anchors.verticalCenter: parent.verticalCenter
                         color: root.text
                         font.pixelSize: 17
                         focus: true
@@ -146,62 +180,88 @@ ShellRoot {
                             anchors.verticalCenter: parent.verticalCenter
                             visible: input.text === ""
                             text: "Uygulama ara…"
-                            color: root.muted
+                            color: root.faint
                             font.pixelSize: 17
                         }
                     }
                 }
 
+                // ---- results ------------------------------------------
                 Text {
                     visible: root.filtered.length === 0
-                    Layout.fillWidth: true
-                    Layout.topMargin: 6
+                    width: parent.width
+                    topPadding: 8
+                    bottomPadding: 8
                     text: root.entries.length === 0 ? "Uygulama listesi yüklenemedi" : "Eşleşme yok"
                     color: root.muted
-                    font.pixelSize: 14
+                    font.pixelSize: 13
+                    horizontalAlignment: Text.AlignHCenter
                 }
 
-                Repeater {
-                    model: root.filtered
+                Item {
+                    visible: root.filtered.length > 0
+                    width: parent.width
+                    height: Math.min(root.filtered.length * root.rowHeight,
+                                     root.maxRows * root.rowHeight)
 
-                    Rectangle {
-                        required property var modelData
-                        required property int index
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 42
-                        height: 42            // the layout prop alone was ignored for delegates
-                        radius: 10
-                        color: index === root.selected ? Qt.rgba(0.878, 0.663, 0.231, 0.16) : "transparent"
+                    ListView {
+                        id: list
+                        anchors.fill: parent
+                        clip: true
+                        model: root.filtered
+                        currentIndex: root.selected
+                        interactive: false
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            spacing: 10
+                        delegate: Rectangle {
+                            required property var modelData
+                            required property int index
+                            width: list.width
+                            height: root.rowHeight
+                            radius: 10
+                            color: index === root.selected ? Qt.rgba(0.878, 0.663, 0.231, 0.14)
+                                 : rowArea.containsMouse ? root.card : "transparent"
 
                             Rectangle {
-                                width: 6
-                                height: 6
+                                width: 5
+                                height: 5
                                 radius: 3
-                                color: index === root.selected ? root.amber : root.muted
+                                anchors.left: parent.left
+                                anchors.leftMargin: 13
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: index === root.selected ? root.amber : root.faint
                             }
 
                             Text {
-                                Layout.fillWidth: true
+                                anchors.left: parent.left
+                                anchors.leftMargin: 28
+                                anchors.right: parent.right
+                                anchors.rightMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.name
                                 color: index === root.selected ? root.text : root.muted
-                                font.pixelSize: 15
+                                font.pixelSize: 14
                                 elide: Text.ElideRight
                             }
-                        }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onEntered: root.selected = index
-                            onClicked: root.launch(modelData)
+                            MouseArea {
+                                id: rowArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onEntered: root.selected = index
+                                onClicked: root.launch(modelData)
+                            }
                         }
                     }
+                }
+
+                // ---- footer hint --------------------------------------
+                Text {
+                    width: parent.width
+                    topPadding: 2
+                    text: "↵ aç    ↑↓ seç    esc kapat"
+                    color: root.faint
+                    font.pixelSize: 10
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
         }
