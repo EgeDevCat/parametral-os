@@ -1,112 +1,172 @@
 #!/usr/bin/env python3
-"""Generate the Parametral desktop wallpapers (light + dark, 2560x1440).
+"""Generate the Parametral desktop wallpapers.
 
-Same language as the login screen: soft gradient, the gauge as a large ghost, a warm
-glow, and a small wordmark in a corner. Nothing hard-edged.
+Art direction: ÖLÇÜM PLAKASI (a drafting table). Warm graphite, hairline measurement line,
+no decoration that competes with a window.
+
+The bar plateau is drawn HERE, not by the shell. Noctalia draws a bar surface we cannot
+restyle into a plate with a 2 px ruler along its bottom edge, so the plate + ruler live in the
+wallpaper at the exact geometry the bar occupies (top, margin_edge, thickness, margin_ends),
+and Noctalia runs with `background_opacity = 0.0` and draws only the widgets on top of it.
+The workspace marks are the ruler's ticks; they sit in the bar's content row.
+
+Rules this file follows:
+  * colours and bar geometry come from branding/tokens.json — no hex literals here
+  * no amber in the wallpaper: amber is the screen's signal, not its decoration
+  * no wordmark floating in the air (it read as a rendering accident at 1280x800)
+  * the dial is drawn at full resolution — no blur, no crop, no glow
+  * the centre of the screen stays dark and empty: that is where windows go
+
+    python3 scripts/make_wallpaper.py
 """
+
+from __future__ import annotations
+
+import json
+import math
 import os
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ASSETS = os.path.join(ROOT, "assets")
 OUT = os.path.join(ROOT, "branding", "wallpapers")
-MARK = os.path.join(ASSETS, "parametral-mark-1024.png")
-F_LIGHT = "/usr/share/fonts/TTF/DejaVuSans-ExtraLight.ttf"
+TOKENS = os.path.join(ROOT, "branding", "tokens.json")
 
-W, H = 2560, 1440
-
-PALETTES = {
-    "dark": dict(top=(24, 27, 33), bottom=(8, 9, 11), ghost=(255, 246, 232), ghost_a=0.12,
-                 glow=((255, 176, 102), 46), glow2=((90, 140, 220), 26),
-                 ink=(240, 235, 226), sub=(150, 143, 131), vig=70),
-    "light": dict(top=(252, 249, 243), bottom=(230, 218, 199), ghost=(74, 63, 48), ghost_a=0.06,
-                  glow=((255, 250, 235), 110), glow2=((233, 208, 168), 55),
-                  ink=(26, 26, 30), sub=(120, 114, 104), vig=30),
-}
+# Fallbacks only for keys tokens.json does not carry yet (T0 adds them to metric).
+LIGHT_FALLBACK = dict(bg="#EFE7D9", surface="#F4EFE6", text="#1C1A18", muted="#5A544A")
 
 
-def font(size):
-    try:
-        return ImageFont.truetype(F_LIGHT, size)
-    except OSError:
-        return ImageFont.load_default()
+def hex_rgb(value: str) -> tuple[int, int, int]:
+    value = value.lstrip("#")
+    return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
 
 
-def gradient(p):
-    strip = Image.new("RGB", (1, H))
-    px = strip.load()
-    for y in range(H):
-        t = y / (H - 1)
-        px[0, y] = tuple(round(a + (b - a) * t) for a, b in zip(p["top"], p["bottom"]))
-    return strip.resize((W, H), Image.BILINEAR).convert("RGBA")
+def load_tokens():
+    with open(TOKENS) as fh:
+        return json.load(fh)
 
 
-def glow(img, center, radius, color, strength):
-    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))
+def palette(tokens, mode: str):
+    light = tokens.get("colourLight", {})
+    if mode == "dark":
+        source = tokens["colour"]
+    else:
+        source = {**{k: LIGHT_FALLBACK[k] for k in LIGHT_FALLBACK}, **light}
+    return dict(
+        bg=hex_rgb(source["bg"]),
+        surface=hex_rgb(source["surface"]),
+        text=hex_rgb(source["text"]),
+        muted=hex_rgb(source["muted"]),
+    )
+
+
+def bar_geometry(width: int, height: int, bars: dict):
+    """The plate the Noctalia bar reserves: same numbers as branding/noctalia/config.toml."""
+    thickness = int(bars.get("thickness", 40))
+    edge = int(bars.get("marginEdge", 6))
+    ends = int(bars.get("marginEnds", 8 if width <= 1280 else 12))
+    radius = int(bars.get("radius", 12))
+    return dict(x0=ends, y0=edge, x1=width - ends, y1=edge + thickness, radius=radius,
+                thickness=thickness)
+
+
+def compose(size, mode, tokens, plate: bool = True):
+    w, h = size
+    pal = palette(tokens, mode)
+    bars = tokens.get("metric", {})
+    img = Image.new("RGB", (w, h), pal["bg"])
+
+    # ---- 1 px grid: scale for the eye, not a pattern to read ---------------
+    grid = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(grid)
+    step = max(32, w // 48)
+    for x in range(0, w, step):
+        gd.line([(x, 0), (x, h)], fill=pal["muted"] + (12,))
+    for y in range(0, h, step):
+        gd.line([(0, y), (w, y)], fill=pal["muted"] + (12,))
+    every = step * 5
+    for x in range(0, w, every):
+        gd.line([(x, 0), (x, h)], fill=pal["muted"] + (22,))
+    for y in range(0, h, every):
+        gd.line([(0, y), (w, y)], fill=pal["muted"] + (22,))
+    img = Image.alpha_composite(img.convert("RGBA"), grid).convert("RGB")
+
+    # ---- the dial: instrument, low contrast, no glow, no amber -------------
+    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    cx, cy = center
-    for i in range(28, 0, -1):
-        r = radius * i / 28
-        d.ellipse([cx - r, cy - r, cx + r, cy + r],
-                  fill=color + (int(strength * (1 - i / 28) ** 1.6),))
-    return Image.alpha_composite(img, layer.filter(ImageFilter.GaussianBlur(radius // 6)))
+    cx, cy = int(w * 0.70), int(h * 0.46)
+    r = int(min(w, h) * 0.26)
+    width = max(1, int(min(w, h) * 0.0020))
+
+    for scale, alpha in ((1.0, 46), (0.70, 24)):
+        rr = int(r * scale)
+        d.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], outline=pal["muted"] + (alpha,), width=width)
+
+    for i in range(60):
+        angle = math.tau * i / 60 - math.pi / 2
+        major = i % 5 == 0
+        inner = r * (0.87 if major else 0.91)
+        outer = r * 0.98
+        d.line(
+            [(cx + math.cos(angle) * inner, cy + math.sin(angle) * inner),
+             (cx + math.cos(angle) * outer, cy + math.sin(angle) * outer)],
+            fill=pal["muted"] + ((72 if major else 38),),
+            width=width * (2 if major else 1),
+        )
+
+    needle_angle = math.radians(-50)
+    nr = r * 0.62
+    d.line([(cx, cy), (cx + math.cos(needle_angle) * nr, cy + math.sin(needle_angle) * nr)],
+           fill=pal["text"] + (120,), width=max(2, width * 2))
+    hub = max(3, int(r * 0.022))
+    d.ellipse([cx - hub, cy - hub, cx + hub, cy + hub], fill=pal["text"] + (120,))
+
+    img = Image.alpha_composite(img.convert("RGBA"), layer).convert("RGB")
+
+    # ---- the plate and its ruler ------------------------------------------
+    if plate:
+        g = bar_geometry(w, h, bars)
+        plate_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        pd = ImageDraw.Draw(plate_layer)
+        pd.rounded_rectangle([g["x0"], g["y0"], g["x1"], g["y1"]], radius=g["radius"],
+                             fill=pal["surface"] + (255,))
+        # one hairline edge, no glow, no second border
+        pd.rounded_rectangle([g["x0"], g["y0"], g["x1"], g["y1"]], radius=g["radius"],
+                             outline=pal["muted"] + (26,), width=1)
+        # the ruler: 2 px, inset from the plate ends, sitting on its bottom edge
+        rr_y = g["y1"] - 3
+        inset = g["radius"]
+        pd.rectangle([g["x0"] + inset, rr_y, g["x1"] - inset, rr_y + 1],
+                     fill=pal["muted"] + (46,))
+        img = Image.alpha_composite(img.convert("RGBA"), plate_layer).convert("RGB")
+
+    # ---- vignette: keeps the middle quiet where windows live ---------------
+    vign = Image.new("L", (w, h), 0)
+    vd = ImageDraw.Draw(vign)
+    vd.ellipse([-w // 3, -h // 3, w + w // 3, h + h // 3], fill=255)
+    vign = vign.filter(ImageFilter.GaussianBlur(int(min(w, h) * 0.15)))
+    img = Image.composite(img, Image.new("RGB", (w, h), pal["bg"]), vign)
+    return img
 
 
-def ghost(color, alpha, size, blur):
-    m = Image.open(MARK).convert("RGBA")
-    m.thumbnail((size, size), Image.LANCZOS)
-    a = m.split()[3].point(lambda v: int(v * alpha))
-    flat = Image.new("RGBA", m.size, color + (255,))
-    flat.putalpha(a)
-    return flat.filter(ImageFilter.GaussianBlur(blur))
-
-
-def vignette(img, amount):
-    mask = Image.new("L", img.size, 0)
-    ImageDraw.Draw(mask).ellipse([-W * 0.25, -H * 0.35, W * 1.25, H * 1.35], fill=255)
-    mask = mask.filter(ImageFilter.GaussianBlur(320))
-    dark = Image.new("RGBA", img.size, (0, 0, 0, 255))
-    dark.putalpha(mask.point(lambda v: int((255 - v) * amount / 255)))
-    return Image.alpha_composite(img, dark)
-
-
-def build(mode):
-    p = PALETTES[mode]
-    img = gradient(p)
-    img = glow(img, (int(W * 0.22), int(H * 0.86)), 900, *p["glow"])
-    img = glow(img, (int(W * 0.86), int(H * 0.18)), 780, *p["glow2"])
-
-    # Warm halo under the dock. The panel really is a floating island (rounded corner, a few
-    # pixels of gap), but on a uniformly dark background that shape is invisible — the glow is
-    # what makes the island read as a shape instead of a strip.
-    img = glow(img, (int(W * 0.5), int(H * 1.04)), int(W * 0.62),
-               p["glow"][0], int(p["glow"][1] * 0.75))
-
-    # the mark, large and off-centre right, cut by the frame
-    g = ghost(p["ghost"], p["ghost_a"], 1500, 10)
-    img.alpha_composite(g, (int(W * 0.86) - g.width // 2, int(H * 0.40) - g.height // 2))
-    g2 = ghost(p["ghost"], p["ghost_a"] * 0.55, 700, 20)
-    img.alpha_composite(g2, (int(W * 0.10) - g2.width // 2, int(H * 0.12) - g2.height // 2))
-
-    img = vignette(img, p["vig"])
-
-    d = ImageDraw.Draw(img)
-    # Keep the wordmark inside the crop-safe centre: a 16:9 image on a 16:10 screen is
-    # cropped at the sides, and text placed at a fixed 96 px from the edge gets cut. Placing
-    # it relative to the width, high enough to clear a 64 px dock, keeps it readable.
-    d.text((int(W * 0.20), int(H * 0.775)), "Parametral", font=font(54), fill=p["ink"] + (235,))
-    d.text((int(W * 0.20), int(H * 0.845)), "OS", font=font(26), fill=p["sub"] + (200,))
-    return img.convert("RGB")
-
-
-def main():
+def main() -> int:
     os.makedirs(OUT, exist_ok=True)
-    for mode in ("dark", "light"):
-        path = os.path.join(OUT, f"parametral-{mode}.png")
-        build(mode).save(path, optimize=True)
-        print(path)
+    tokens = load_tokens()
+    targets = [
+        ((2560, 1440), "2560x1440", "dark", True),
+        ((2560, 1440), "2560x1440-light", "light", True),
+        ((1920, 1080), "1920x1080", "dark", True),
+        ((1920, 1080), "1920x1080-light", "light", True),
+        ((1280, 800), "1280x800", "dark", True),
+        ((1280, 800), "1280x800-light", "light", True),
+    ]
+    for size, name, mode, plate in targets:
+        img = compose(size, mode, tokens, plate)
+        path = os.path.join(OUT, f"{name}.png")
+        img.save(path, optimize=True)
+        print(f"wrote {path} ({size[0]}x{size[1]})")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

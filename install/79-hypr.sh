@@ -26,6 +26,9 @@ echo "==> Parametral Shell (Quickshell/QML)"
 install -d /usr/share/parametral/shell
 install -m 0644 "$SRC/shell/shell.qml"    /usr/share/parametral/shell/shell.qml
 install -m 0644 "$SRC/shell/launcher.qml" /usr/share/parametral/shell/launcher.qml
+install -m 0644 "$SRC/shell/polkit.qml"   /usr/share/parametral/shell/polkit.qml
+# the shell's only palette source: generated from branding/tokens.json, never hand-edited
+install -m 0644 "$SRC/shell/Theme.js"     /usr/share/parametral/shell/Theme.js
 install -m 0644 "$SRC/branding/hypr/hyprlock.conf" /etc/parametral/hypr/hyprlock.conf
 
 # The session user must be able to read the config: a 0700 /etc/parametral makes Hyprland
@@ -33,16 +36,7 @@ install -m 0644 "$SRC/branding/hypr/hyprlock.conf" /etc/parametral/hypr/hyprlock
 chmod 755 /etc/parametral /etc/parametral/hypr
 chmod 644 /etc/parametral/hypr/* 2>/dev/null || true
 
-echo "==> Oturum girdisi (SDDM'de görünür)"
-install -d /usr/share/wayland-sessions
-cat > /usr/share/wayland-sessions/parametral.desktop <<'EOF'
-[Desktop Entry]
-Name=Parametral
-Comment=Hyprland ile Parametral OS oturumu
-Exec=Hyprland --config /etc/parametral/hypr/parametral.lua
-Type=Application
-DesktopNames=Hyprland
-EOF
+# The session entry lives in 80-noctalia.sh: it must point at uwsm + Noctalia.
 
 echo "==> done"
 echo "    SDDM'de 'Parametral' oturumunu seç, ya da: Hyprland --config /etc/parametral/hypr/parametral.conf"

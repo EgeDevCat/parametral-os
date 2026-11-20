@@ -80,3 +80,15 @@ The session name is the desktop entry's file name, not a path.
 - No settings app: changing the palette or the bar means editing files and reloading
   (`hyprctl reload`, `systemctl --user restart qsbar`).
 - The bar's tray island only appears when there are tray items; there is no overflow menu yet.
+
+## Donanım
+
+| | |
+|---|---|
+| RAM (en az) | 8 GB |
+| RAM (önerilen) | 16 GB (32 GB rahat) |
+| Disk | 40 GB btrfs (snapshot'lar dahil) |
+| GPU | donanım GL; VM'lerde yazılım GL otomatik (`parametral-session`) |
+
+4 GB ile oturum açılıyor ama tarayıcı + derleme aynı anda gelince makine kilitleniyor; 8 GB ve
+üstü takılmayı bitiriyor. Takas zorunlu değil ama btrfs swapfile (4 GB) kilitlenmeye karşı sigorta.

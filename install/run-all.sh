@@ -20,8 +20,10 @@ bash "$SRC/install/76-xdg-defaults.sh"
 # user thinks they booted our shell while they are on Plasma.
 if [ "${PARAMETRAL_DESKTOP:-kde}" = "parametral" ]; then
   if [ -x "$SRC/install/79-hypr.sh" ]; then
-    echo "=== 79 parametral session (hyprland)"
+    echo "=== 79 parametral session files (hyprland, experimental QML shell)"
     bash "$SRC/install/79-hypr.sh"
+    echo "=== 80 noctalia session (uwsm + shell + palette)"
+    bash "$SRC/install/80-noctalia.sh"
   else
     echo "=== parametral shell: not in this payload — keeping KDE (asked for by installer)"
   fi

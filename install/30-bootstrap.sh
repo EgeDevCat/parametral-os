@@ -18,7 +18,7 @@ pacstrap /mnt \
 echo "==> fstab"
 genfstab -U /mnt >> /mnt/etc/fstab
 # the snapshot tree must not be auto-snapshotted itself, and /var keeps logs out of @
-grep -q 'subvol=@snapshots' /mnt/etc/fstab || \
+grep -q 'subvol=/@snapshots' /mnt/etc/fstab || \
   echo "UUID=$(findmnt -no UUID /mnt/.snapshots) /.snapshots btrfs rw,noatime,compress=zstd:3,subvol=@snapshots 0 0" >> /mnt/etc/fstab
 
 if [ "${PARAMETRAL_LUKS:-0}" = "1" ]; then
@@ -29,7 +29,8 @@ echo "==> hostname / locale / timezone"
 echo parametral > /mnt/etc/hostname
 sed -i 's/^#en_US.UTF-8/en_US.UTF-8/; s/^#tr_TR.UTF-8/tr_TR.UTF-8/' /mnt/etc/locale.gen
 arch-chroot /mnt locale-gen
-echo "LANG=en_US.UTF-8" > /mnt/etc/locale.conf
+# the product is Turkish: every date in the bar, lock screen and apps reads LC_TIME
+echo "LANG=tr_TR.UTF-8" > /mnt/etc/locale.conf
 ln -sf /usr/share/zoneinfo/Europe/Istanbul /mnt/etc/localtime
 arch-chroot /mnt hwclock --systohc
 

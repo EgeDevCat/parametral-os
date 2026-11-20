@@ -3,12 +3,14 @@
 // Quickshell (QML) on Hyprland. Everything is a file the AI can rewrite, and the whole surface
 // is one design language: islands floating over the wallpaper, graphite body, amber edge.
 //
-// Geometry note: the panel uses PanelWindow.margins (not manual anchors) — anchoring the
-// content to the window edge pushed the islands below the screen edge on a 1280x800 panel.
+// Colours and metrics come from Theme.js, which scripts/gen_theme.py generates from
+// branding/tokens.json. Never paste a hex value in here.
 //
-// Left to right: launcher · workspaces · [space] · status (volume, battery, network) · clock ·
-// power. Islands only exist when they have something to say: an empty island reads as a
-// rendering bug, so the tray and the battery hide themselves when absent.
+// Left to right: launcher · workspaces · [space] · status · clock · power. The clock is not the
+// brightest thing on the bar: the active workspace is, because that is what the hand is on.
+//
+// Geometry note: the panel uses PanelWindow.margins (not manual anchors) — anchoring the
+// content to the window edge pushed the islands below the screen edge on a small panel.
 
 import QtQuick
 import QtQuick.Layouts
@@ -19,22 +21,14 @@ import Quickshell.Io
 import Quickshell.Services.SystemTray
 import Quickshell.Services.UPower
 import Quickshell.Networking
+import "Theme.js" as Theme
 
 ShellRoot {
     id: root
 
-    readonly property color bg:     "#12171E"
-    readonly property color bgSoft: "#171D25"
-    readonly property color text:   "#E9E4D8"
-    readonly property color muted:  "#9AA4B2"
-    readonly property color faint:  "#6B7280"
-    readonly property color amber:  "#E0A93B"
-    readonly property color inkOnAmber: "#1A150A"
-    readonly property color edge:   Qt.rgba(0.878, 0.663, 0.231, 0.22)
-    readonly property color edgeSoft: Qt.rgba(0.60, 0.64, 0.70, 0.18)
-
     readonly property int wsCount: 5
     property string volumeText: "—"
+    property int volumePercent: -1
 
     Process {
         id: volumeProc
@@ -43,9 +37,17 @@ ShellRoot {
         stdout: StdioCollector {
             onStreamFinished: {
                 const match = this.text.match(/Volume:\s*([0-9.]+)/)
-                if (this.text.includes("MUTED")) root.volumeText = "sessiz"
-                else if (match) root.volumeText = Math.round(parseFloat(match[1]) * 100) + "%"
-                else root.volumeText = "—"
+                if (this.text.includes("MUTED")) {
+                    root.volumeText = "sessiz"
+                    root.volumePercent = 0
+                } else if (match) {
+                    const pct = Math.round(parseFloat(match[1]) * 100)
+                    root.volumeText = pct + "%"
+                    root.volumePercent = pct
+                } else {
+                    root.volumeText = "—"
+                    root.volumePercent = -1
+                }
             }
         }
     }
@@ -59,40 +61,45 @@ ShellRoot {
     }
 
     component Island: Rectangle {
-        radius: 14
-        color: root.bg
-        border.color: root.edge
+        radius: Theme.radius
+        color: Theme.surface
+        border.color: Theme.edge
         border.width: 1
-        Behavior on color { ColorAnimation { duration: 120 } }
     }
 
-    // a clickable island slot: hover lifts the edge, press dims it
-    component Chip: Rectangle {
-        id: chip
-        property string label: ""
+    // A workspace pill: hover and active must be visibly different — hover is a lift of the
+    // body colour with an amber edge, active is the only amber fill on this part of the screen.
+    component WsPill: Rectangle {
+        id: pill
+        property int number: 0
         property bool active: false
-        signal tapped()
+        property bool occupied: false
 
-        radius: 10
-        color: active ? root.amber
-             : area.containsMouse ? root.bgSoft
+        width: 30
+        height: 30
+        radius: 9
+        color: active ? Theme.amber
+             : hover.containsMouse ? Theme.cardHover
              : "transparent"
+        border.width: (!active && hover.containsMouse) ? 1 : 0
+        border.color: Theme.edge
+
         Behavior on color { ColorAnimation { duration: 110 } }
 
         Text {
             anchors.centerIn: parent
-            text: chip.label
-            color: chip.active ? root.inkOnAmber : root.muted
+            text: pill.number
+            color: pill.active ? Theme.amberInk : (pill.occupied ? Theme.text : Theme.faint)
             font.pixelSize: 12
-            font.bold: chip.active
+            font.bold: pill.active
         }
 
         MouseArea {
-            id: area
+            id: hover
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: chip.tapped()
+            onClicked: Hyprland.dispatch("workspace " + pill.number)
         }
     }
 
@@ -102,27 +109,26 @@ ShellRoot {
         anchors.left: true
         anchors.right: true
 
-        implicitHeight: 56
+        implicitHeight: Theme.barHeight
         color: "transparent"
         exclusiveZone: 0
 
         margins {
-            left: 14
-            right: 14
+            left: Theme.barMargin
+            right: Theme.barMargin
             bottom: 8
         }
 
         RowLayout {
             anchors.fill: parent
-            spacing: 10
+            spacing: Theme.gap
 
             // ---- launcher -------------------------------------------------
             Island {
                 Layout.preferredWidth: 46
                 Layout.fillHeight: true
-                color: launcherArea.containsMouse ? root.bgSoft : root.bg
+                color: launcherArea.containsMouse ? Theme.cardHover : Theme.surface
 
-                // the gauge, drawn: same mark as the apps, no icon file to go missing
                 Canvas {
                     anchors.centerIn: parent
                     width: 26
@@ -131,7 +137,7 @@ ShellRoot {
                         const ctx = getContext("2d")
                         ctx.reset()
                         const c = width / 2, r = width * 0.42
-                        ctx.strokeStyle = root.amber
+                        ctx.strokeStyle = Theme.amber
                         ctx.lineWidth = 1.6
                         ctx.beginPath()
                         for (let i = 0; i < 12; i++) {
@@ -143,7 +149,7 @@ ShellRoot {
                         ctx.beginPath()
                         ctx.arc(c, c, r * 0.62, 0, Math.PI * 2)
                         ctx.stroke()
-                        ctx.fillStyle = root.amber
+                        ctx.fillStyle = Theme.amber
                         ctx.beginPath()
                         ctx.arc(c, c, 2.2, 0, Math.PI * 2)
                         ctx.fill()
@@ -169,20 +175,15 @@ ShellRoot {
                     anchors.centerIn: parent
                     spacing: 4
 
-                    // fixed 1..5: a workspace you cannot see is a workspace you forget
                     Repeater {
                         model: root.wsCount
 
-                        Chip {
+                        WsPill {
                             required property int index
-                            readonly property int id: index + 1
-                            readonly property var ws: Hyprland.workspaces.values.find(w => w.id === id)
-                            label: id
-                            active: Hyprland.focusedWorkspace?.id === id
-                            width: 30
-                            height: 30
-                            opacity: (active || ws) ? 1.0 : 0.55
-                            onTapped: Hyprland.dispatch("workspace " + id)
+                            number: index + 1
+                            readonly property var ws: Hyprland.workspaces.values.find(w => w.id === (index + 1))
+                            active: Hyprland.focusedWorkspace?.id === (index + 1)
+                            occupied: ws !== undefined
                         }
                     }
                 }
@@ -216,7 +217,7 @@ ShellRoot {
                 }
             }
 
-            // ---- status: volume, battery, network --------------------------
+            // ---- status: speaker glyph + %, battery glyph + %, connectivity dot ----
             Island {
                 Layout.preferredWidth: statusRow.implicitWidth + 24
                 Layout.fillHeight: true
@@ -224,78 +225,130 @@ ShellRoot {
                 Row {
                     id: statusRow
                     anchors.centerIn: parent
-                    spacing: 12
+                    spacing: 8
 
-                    // volume: polled from wpctl — Pipewire's node api reports 0 for a
-                    // suspended sink, and a wrong number is worse than a stale one
+                    Item {
+                        width: 15
+                        height: 15
+                        anchors.verticalCenter: parent.verticalCenter
+
+                        Canvas {
+                            anchors.fill: parent
+                            onPaint: {
+                                const ctx = getContext("2d")
+                                ctx.reset()
+                                ctx.strokeStyle = root.volumePercent === 0 ? Theme.faint : Theme.muted
+                                ctx.fillStyle = ctx.strokeStyle
+                                ctx.lineWidth = 1.3
+                                ctx.beginPath()
+                                ctx.moveTo(1.5, 5.5)
+                                ctx.lineTo(4.5, 5.5)
+                                ctx.lineTo(8, 2.5)
+                                ctx.lineTo(8, 12.5)
+                                ctx.lineTo(4.5, 9.5)
+                                ctx.lineTo(1.5, 9.5)
+                                ctx.closePath()
+                                ctx.fill()
+                                if (root.volumePercent > 0) {
+                                    ctx.beginPath()
+                                    ctx.arc(8.5, 7.5, 4, -0.9, 0.9)
+                                    ctx.stroke()
+                                } else {
+                                    ctx.beginPath()
+                                    ctx.moveTo(10, 5)
+                                    ctx.lineTo(14, 10)
+                                    ctx.moveTo(14, 5)
+                                    ctx.lineTo(10, 10)
+                                    ctx.stroke()
+                                }
+                            }
+                        }
+                    }
+
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.volumeText
-                        color: root.volumeText === "sessiz" ? root.faint : root.muted
-                        font.pixelSize: 11
+                        color: Theme.muted
+                        font.pixelSize: Theme.fontMeta
                         font.family: "monospace"
                     }
 
-                    // battery: only when there is one to report
+                    Item {
+                        width: 22
+                        height: 15
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: UPower.displayDevice?.ready ?? false
+
+                        readonly property real level: UPower.displayDevice?.percentage ?? 0
+
+                        Canvas {
+                            anchors.fill: parent
+                            onPaint: {
+                                const ctx = getContext("2d")
+                                ctx.reset()
+                                const lvl = parent.level
+                                const low = lvl < 0.15
+                                ctx.strokeStyle = low ? Theme.danger : Theme.muted
+                                ctx.lineWidth = 1.2
+                                ctx.beginPath()
+                                ctx.rect(0.7, 1.5, 17, 12)
+                                ctx.stroke()
+                                ctx.fillStyle = low ? Theme.danger : Theme.muted
+                                ctx.fillRect(2.2, 3, Math.max(1, 13 * lvl), 9)
+                                ctx.fillRect(18.6, 5.5, 2, 4)
+                            }
+                        }
+                    }
+
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: UPower.displayDevice?.ready ?? false
-                        text: {
-                            const d = UPower.displayDevice
-                            if (!d || !d.ready) return ""
-                            return Math.round((d.percentage ?? 0) * 100) + "%" + (d.state === 1 ? " ⚡" : "")
-                        }
-                        color: (UPower.displayDevice?.percentage ?? 1) < 0.15 ? "#D66056" : root.muted
-                        font.pixelSize: 11
+                        text: Math.round((UPower.displayDevice?.percentage ?? 0) * 100) + "%"
+                        color: (UPower.displayDevice?.percentage ?? 1) < 0.15 ? Theme.danger : Theme.muted
+                        font.pixelSize: Theme.fontMeta
                         font.family: "monospace"
                     }
 
-                    // network: one dot, colour tells the story
-                    Row {
+                    // connectivity: a dot, no word — "net" said nothing a dot says
+                    Rectangle {
+                        width: 6
+                        height: 6
+                        radius: 3
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 5
-                        Rectangle {
-                            width: 6
-                            height: 6
-                            radius: 3
-                            anchors.verticalCenter: parent.verticalCenter
-                            color: Networking.connectivity === NetworkConnectivity.Full ? "#7EAE68"
-                                 : (Networking.connectivity === NetworkConnectivity.Limited
-                                    || Networking.connectivity === NetworkConnectivity.Portal) ? root.amber
-                                 : Networking.connectivity === NetworkConnectivity.None ? "#D66056"
-                                 : root.faint
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: "net"
-                            color: root.muted
-                            font.pixelSize: 11
-                        }
+                        color: Networking.connectivity === NetworkConnectivity.Full ? Theme.ok
+                             : (Networking.connectivity === NetworkConnectivity.Limited
+                                || Networking.connectivity === NetworkConnectivity.Portal) ? Theme.amber
+                             : Networking.connectivity === NetworkConnectivity.None ? Theme.danger
+                             : Theme.faint
                     }
                 }
             }
 
-            // ---- clock -----------------------------------------------------
+            // ---- clock: deliberately quieter than the amber workspace ---------
             Island {
                 Layout.preferredWidth: clockColumn.implicitWidth + 30
                 Layout.fillHeight: true
+                color: "transparent"
+                border.width: 0
 
                 Column {
                     id: clockColumn
                     anchors.centerIn: parent
-                    spacing: 0
+                    spacing: -1
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: Qt.formatDateTime(clock.date, "HH:mm")
-                        color: root.text
-                        font.pixelSize: 15
-                        font.bold: true
+                        color: Theme.text
+                        font.pixelSize: 14
+                        font.weight: Font.Medium
+                        opacity: 0.92
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: clock.date.toLocaleString(Qt.locale("tr_TR"), "ddd d MMM").toLowerCase()
-                        color: root.faint
+                        // "20 Kasım Cuma": full month, capitalised, same string as the lock screen
+                        text: clock.date.toLocaleString(Qt.locale("tr_TR"), "d MMMM dddd")
+                        color: Theme.faint
                         font.pixelSize: 10
                     }
 
@@ -310,12 +363,12 @@ ShellRoot {
             Island {
                 Layout.preferredWidth: 46
                 Layout.fillHeight: true
-                color: powerArea.containsMouse ? root.bgSoft : root.bg
+                color: powerArea.containsMouse ? Theme.cardHover : Theme.surface
 
                 Text {
                     anchors.centerIn: parent
                     text: "⏻"
-                    color: powerArea.containsMouse ? root.amber : root.muted
+                    color: powerArea.containsMouse ? Theme.amber : Theme.muted
                     font.pixelSize: 15
                 }
 
@@ -330,21 +383,24 @@ ShellRoot {
         }
     }
 
-    // IPC so a Hyprland keybind can open this without a second implementation of the menu
+    // IPC so a Hyprland keybind can open the menu without a second implementation of it
     IpcHandler {
         target: "powermenu"
         function toggle(): void { powerMenu.visible = !powerMenu.visible }
         function close(): void { powerMenu.visible = false }
+        // dev hooks: run fixed commands INSIDE the session (the bar has the session env, a root
+        // shell does not). Fixed paths, no arguments — not a general command runner.
+        function diag(): void { Quickshell.execDetached(["/usr/bin/pkdiag"]) }
+        function agent(): void { Quickshell.execDetached(["qs", "-p", "/usr/share/parametral/shell/polkit.qml"]) }
     }
 
     // ---- power menu -------------------------------------------------------
-    // A small window of our own instead of a wofi/rofi script: same corners, same edge.
     PanelWindow {
         id: powerMenu
         visible: false
         anchors.bottom: true
         anchors.right: true
-        margins { right: 14; bottom: 74 }
+        margins { right: Theme.barMargin; bottom: 74 }
         implicitWidth: 190
         implicitHeight: 196
         color: "transparent"
@@ -353,9 +409,9 @@ ShellRoot {
 
         Rectangle {
             anchors.fill: parent
-            radius: 14
-            color: root.bg
-            border.color: root.edge
+            radius: Theme.radius
+            color: Theme.surface
+            border.color: Theme.edge
             border.width: 1
 
             Column {
@@ -365,10 +421,10 @@ ShellRoot {
 
                 Repeater {
                     model: [
-                        { label: "Kilitle",    cmd: ["hyprlock"] },
-                        { label: "Oturumu kapat", cmd: ["hyprctl", "dispatch", "exit"] },
+                        { label: "Kilitle",        cmd: ["hyprlock", "--config", "/etc/parametral/hypr/hyprlock.conf"] },
+                        { label: "Oturumu kapat",  cmd: ["hyprctl", "dispatch", "exit"] },
                         { label: "Yeniden başlat", cmd: ["systemctl", "reboot"] },
-                        { label: "Kapat",      cmd: ["systemctl", "poweroff"] }
+                        { label: "Kapat",          cmd: ["systemctl", "poweroff"] }
                     ]
 
                     Rectangle {
@@ -376,15 +432,15 @@ ShellRoot {
                         width: parent.width
                         height: 42
                         radius: 9
-                        color: itemArea.containsMouse ? root.bgSoft : "transparent"
+                        color: itemArea.containsMouse ? Theme.cardHover : "transparent"
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
                             anchors.leftMargin: 12
                             text: modelData.label
-                            color: modelData.label === "Kapat" && itemArea.containsMouse ? "#D66056" : root.text
-                            font.pixelSize: 13
+                            color: (modelData.label === "Kapat" && itemArea.containsMouse) ? Theme.danger : Theme.text
+                            font.pixelSize: Theme.fontBody
                         }
 
                         MouseArea {
@@ -394,11 +450,7 @@ ShellRoot {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 powerMenu.visible = false
-                                if (modelData.cmd[0] === "systemctl") {
-                                    Quickshell.execDetached(["systemctl", modelData.cmd[1]])
-                                } else {
-                                    Quickshell.execDetached(modelData.cmd)
-                                }
+                                Quickshell.execDetached(modelData.cmd)
                             }
                         }
                     }
