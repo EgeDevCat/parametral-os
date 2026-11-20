@@ -34,7 +34,7 @@ Name=Parametral
 Comment=Hyprland ve Noctalia ile Parametral OS oturumu
 Exec=/usr/local/bin/parametral-session
 Type=Application
-DesktopNames=Hyprland
+DesktopNames=Parametral
 EOF
 chmod 644 /usr/share/wayland-sessions/parametral.desktop
 
