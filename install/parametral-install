@@ -82,8 +82,8 @@ def ask_secret(prompt):
         except (EOFError, KeyboardInterrupt):
             print("\nİptal edildi.")
             sys.exit(130)
-        if len(a) < 6:
-            print(f"{RED}   En az 6 karakter.{OFF}")
+        if len(a) < 3:
+            print(f"{RED}   En az 3 karakter.{OFF}")
             continue
         if "\n" in a or "\r" in a:
             print(f"{RED}   Parola satır sonu içeremez.{OFF}")
