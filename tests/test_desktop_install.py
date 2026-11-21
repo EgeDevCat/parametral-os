@@ -121,6 +121,33 @@ class Separation(unittest.TestCase):
             self.assertEqual(result.returncode, 0, f"{script}: {result.stderr}")
 
 
+class IsoBuild(unittest.TestCase):
+    def test_iso_scripts_parse(self):
+        for name in ("build.sh", "installer.sh", "live-init.sh"):
+            result = run("bash", "-n", str(ROOT / "iso" / name))
+            self.assertEqual(result.returncode, 0, f"{name}: {result.stderr}")
+
+    def test_build_keeps_boot_images_and_uses_the_live_launcher(self):
+        text = (ROOT / "iso" / "build.sh").read_text()
+        self.assertIn("-boot_image any replay", text)
+        self.assertIn("-volume_date uuid", text)
+        self.assertIn("parametral-installer.sh", text)
+        self.assertIn("script=/root/parametral-installer.sh", text)
+        self.assertNotIn("mkarchiso", text)
+        self.assertNotIn("sudo", text)
+
+    def test_iso_installer_runs_python_not_bash(self):
+        text = (ROOT / "iso" / "installer.sh").read_text()
+        self.assertIn('exec python3 "$DIR/parametral/install/parametral-install"', text)
+        self.assertNotIn('exec bash "$DIR/parametral/install/parametral-install"', text)
+
+    def test_live_init_has_a_manual_fallback(self):
+        text = (ROOT / "iso" / "live-init.sh").read_text()
+        self.assertIn("/root/parametral-medium", text)
+        self.assertIn("mount -o ro", text)
+        self.assertIn("/run/archiso/bootmnt", text)
+
+
 class SessionSelector(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

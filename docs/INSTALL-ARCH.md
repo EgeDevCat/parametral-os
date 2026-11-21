@@ -7,6 +7,9 @@ Hedef disk örneği: `/dev/nvme0n1`. Sıra:
 `10 → 20 → 30 → 35 → 40 → 65 → 74 → 45 → 78 → 50 → 60 → 70`.
 `74-desktop.sh` masaüstü seçimidir: KDE Plasma veya Hyprland (Parametral oturumu).
 
+Hazır önyüklenebilir imaj için: `bash iso/build.sh <archlinux.iso> <out.iso>` (root gerekmez,
+BIOS + UEFI, kurulum sihirbazını tty1'de otomatik başlatır). Ayrıntı `iso/README.md`.
+
 ## 1. ISO'da hazırlık (fish)
 
 ```fish
