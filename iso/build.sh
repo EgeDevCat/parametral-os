@@ -30,7 +30,7 @@ EOF
   exit 2
 fi
 [ -f "$BASE_ISO" ] || { echo "base ISO not found: $BASE_ISO" >&2; exit 2; }
-for tool in xorriso lsinitcpio cpio zstd python3; do
+for tool in xorriso lsinitcpio cpio zstd python3 mcopy; do
   command -v "$tool" >/dev/null || { echo "missing tool: $tool" >&2; exit 2; }
 done
 
@@ -71,6 +71,30 @@ chmod -R u+w "$WORK/remaster"
 
 # The manual fallback at the ISO root.
 install -m 0755 "$ROOT/iso/installer.sh" "$WORK/remaster/installer.sh"
+
+echo "==> UEFI boot image: systemd-boot has its own FAT copy of loader.conf"
+mkdir -p "$WORK/efi" "$WORK/efi-patch"
+xorriso -osirrox on -indev "$BASE_ISO" -extract_boot_images "$WORK/efi" >/dev/null 2>&1
+cp "$WORK/efi/eltorito_img2_uefi.img" "$WORK/efi/efi-parametral.img"
+cat > "$WORK/efi-patch/01-archiso-linux.conf" <<EOF
+title    Parametral OS installer (x86_64, UEFI)
+sort-key 01
+linux    /arch/boot/x86_64/vmlinuz-linux
+initrd   /arch/boot/x86_64/initramfs-linux.img
+options  archisobasedir=arch archisosearchuuid=$SEARCH_UUID script=/root/parametral-installer.sh
+EOF
+cat > "$WORK/efi-patch/02-archiso-speech-linux.conf" <<EOF
+title    Parametral OS installer with speech (x86_64, UEFI)
+sort-key 02
+linux    /arch/boot/x86_64/vmlinuz-linux
+initrd   /arch/boot/x86_64/initramfs-linux.img
+options  archisobasedir=arch archisosearchuuid=$SEARCH_UUID accessibility=on script=/root/parametral-installer.sh
+EOF
+printf 'timeout 10\ndefault 01-archiso-linux.conf\nbeep on\n' > "$WORK/efi-patch/loader.conf"
+for entry in 01-archiso-linux.conf 02-archiso-speech-linux.conf; do
+  mcopy -o -i "$WORK/efi/efi-parametral.img" "$WORK/efi-patch/$entry" "::/loader/entries/$entry"
+done
+mcopy -o -i "$WORK/efi/efi-parametral.img" "$WORK/efi-patch/loader.conf" ::/loader/loader.conf
 
 echo "==> live initramfs: carry the launcher into the live root"
 xorriso -indev "$BASE_ISO" -osirrox on \
@@ -114,6 +138,11 @@ PY
   find . -print0 | cpio --null -o --format=newc -R 0:0 2>/dev/null |
     zstd -19 -T0 -q -o "$WORK/initramfs-parametral.img"
 )
+
+# UEFI systemd-boot loads the kernel and initramfs from its own FAT image, not from the
+# ISO9660 tree. If only the ISO copy is replaced, UEFI boots the original Arch initramfs and
+# the launcher never reaches the live root.
+mcopy -o -i "$WORK/efi/efi-parametral.img" "$WORK/initramfs-parametral.img" ::/arch/boot/x86_64/initramfs-linux.img
 
 echo "==> boot config: title, UUID, automatic installer"
 python3 - "$WORK/remaster" "$SEARCH_UUID" <<'PY'
@@ -173,6 +202,8 @@ xorriso -indev "$BASE_ISO" -outdev "$OUT" \
   -map "$WORK/remaster/installer.sh" /installer.sh \
   -map "$WORK/payload" /parametral \
   -boot_image any replay \
+  -append_partition 2 0xef "$WORK/efi/efi-parametral.img" \
+  -boot_image any efi_path=--interval:appended_partition_2:all:: \
   -volume_date uuid "$UUID16" \
   -commit >/dev/null
 

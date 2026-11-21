@@ -30,10 +30,15 @@ user, appearance and **KDE Plasma / Hyprland**. It sees the target disks through
 2. Extracts the initramfs with `lsinitcpio`, adds a launcher, and patches the `archiso` hook to
    copy that launcher into the live root and record `archisodevice`.
 3. Repacks the initramfs with `cpio` + `zstd` (as the installing user, with `-R 0:0`).
-4. Rewrites the boot entries with a fixed volume UUID and `script=/root/parametral-installer.sh`.
-5. Writes the ISO with `xorriso -boot_image any replay`, which preserves and re-patches the
-   BIOS and UEFI boot images. `-volume_date uuid` is applied *after* the replay so
-   `archisosearchuuid` and the ISO's real UUID agree.
+4. Rewrites the ISO's boot entries and the **UEFI FAT boot image** with a fixed volume UUID
+   and `script=/root/parametral-installer.sh`. The UEFI image is systemd-boot's own FAT copy,
+   so editing only `/loader` on the ISO would leave the Arch menu visible. The FAT image also
+   carries its own kernel/initramfs; the patched initramfs is copied into it, otherwise UEFI
+   boots the original Arch one and the launcher never reaches the live root.
+5. Writes the ISO with `xorriso -boot_image any replay`, preserving and re-patching the BIOS
+   boot image, then replaces appended partition 2 with the patched UEFI image.
+   `-volume_date uuid` is applied *after* the replay so `archisosearchuuid` and the ISO's real
+   UUID agree.
 
 Set `SOURCE_DATE_EPOCH` for a reproducible volume UUID:
 
@@ -46,5 +51,5 @@ menu, the installer's disk list, and the KDE/Hyprland question.
 
 ## Requirements
 
-`xorriso`, `lsinitcpio`, `cpio`, `zstd`, `python3`, and the Arch ISO. No root, no `mkarchiso`,
-no `arch-chroot`.
+`xorriso`, `lsinitcpio`, `cpio`, `zstd`, `python3`, `mtools` (`mcopy`), and the Arch ISO.
+No root, no `mkarchiso`, no `arch-chroot`.

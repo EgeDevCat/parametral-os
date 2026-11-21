@@ -133,6 +133,10 @@ class IsoBuild(unittest.TestCase):
         self.assertIn("-volume_date uuid", text)
         self.assertIn("parametral-installer.sh", text)
         self.assertIn("script=/root/parametral-installer.sh", text)
+        self.assertIn("eltorito_img2_uefi.img", text)
+        self.assertIn("mcopy", text)
+        self.assertIn("::/arch/boot/x86_64/initramfs-linux.img", text)
+        self.assertIn("efi_path=--interval:appended_partition_2:all::", text)
         self.assertNotIn("mkarchiso", text)
         self.assertNotIn("sudo", text)
 
