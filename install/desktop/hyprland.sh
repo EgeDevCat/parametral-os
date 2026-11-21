@@ -33,6 +33,11 @@ PACKAGES=(
   ttf-ibm-plex
   noto-fonts
   noto-fonts-emoji
+  brightnessctl
+  playerctl
+  xdg-user-dirs
+  xdg-utils
+  libnotify
 )
 
 if [ "${1:-}" = "--plan" ]; then

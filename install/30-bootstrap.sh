@@ -15,6 +15,8 @@ pacstrap /mnt \
   btrfs-progs dosfstools e2fsprogs cryptsetup sudo efibootmgr \
   networkmanager openssh vim git less nix \
   python mesa \
+  pipewire pipewire-pulse pipewire-alsa wireplumber \
+  bluez bluez-utils \
   noto-fonts noto-fonts-emoji
 
 # pacstrap can finish without a resolver inside the target; the desktop step installs packages

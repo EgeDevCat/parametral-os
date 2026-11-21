@@ -46,8 +46,11 @@ options rootflags=subvol=@ $CMDLINE_COMMON
 EOF
 }
 
-echo "==> services: network"
+echo "==> services: network, audio, bluetooth"
 systemctl enable NetworkManager.service
+if pacman -Q bluez >/dev/null 2>&1; then
+  systemctl enable bluetooth.service
+fi
 
 # SDDM is installed by 74-desktop.sh for both editions. If no edition was selected (a hand
 # install that stopped early), do not enable a greeter that does not exist.
