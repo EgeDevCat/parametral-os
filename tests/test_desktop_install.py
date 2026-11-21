@@ -121,6 +121,29 @@ class Separation(unittest.TestCase):
             self.assertEqual(result.returncode, 0, f"{script}: {result.stderr}")
 
 
+class VerifyRegressions(unittest.TestCase):
+    def test_subvolume_check_accepts_the_findmnt_form(self):
+        text = (INSTALL / "70-verify.sh").read_text()
+        self.assertIn("subvol=/@", text)
+        self.assertNotIn('mount | grep -q "subvol=$s,"', text)
+
+    def test_sudo_check_uses_exit_status_not_english(self):
+        text = (INSTALL / "70-verify.sh").read_text()
+        self.assertIn("sudo -l -U ai >/dev/null 2>&1", text)
+        self.assertNotIn("grep -qi 'not allowed'", text)
+
+    def test_approver_key_dir_is_checked_and_created_0700(self):
+        verify = (INSTALL / "70-verify.sh").read_text()
+        users = (INSTALL / "40-users.sh").read_text()
+        self.assertIn("/var/lib/parametral/keys", verify)
+        self.assertIn("-m 0700 /var/lib/parametral/keys", users)
+
+    def test_bootstrap_generates_the_fallback_initramfs(self):
+        text = (INSTALL / "30-bootstrap.sh").read_text()
+        self.assertIn("initramfs-linux-fallback.img", text)
+        self.assertIn("mkinitcpio -g", text)
+
+
 class IsoBuild(unittest.TestCase):
     def test_iso_scripts_parse(self):
         for name in ("build.sh", "installer.sh", "live-init.sh"):

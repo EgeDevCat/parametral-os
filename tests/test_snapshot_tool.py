@@ -121,6 +121,15 @@ class SnapshotToolTest(unittest.TestCase):
         self.assertIn("alpha", listing.stdout)
         self.assertIn("present", listing.stdout)
 
+    def test_create_dry_run_leaves_no_missing_entry(self):
+        result = self.run_tool("create", "dry", dry_run=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("DRY", result.stdout)
+        self.assertEqual(os.listdir(self.snap_dir), [],
+                         "dry run must not create a snapshot directory")
+        listing = self.run_tool("list")
+        self.assertNotIn("missing", listing.stdout)
+
     # ----------------------------------------------------------- boot entry
 
     def test_boot_entry_points_at_the_snapshot(self):

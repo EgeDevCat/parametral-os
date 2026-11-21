@@ -62,6 +62,13 @@ cmd_create() {
     path="$(snapshot_path "$id")"
     n=$((n + 1))
   done
+  if [ "$DRY_RUN" = "1" ]; then
+    # A dry run must not leave an empty directory behind: cmd_list would then show a
+    # permanent "missing" snapshot and 70-verify's present check would become noise.
+    printf 'DRY %s subvolume snapshot -r %s %s\n' "$BTRFS" "$ROOT_PATH" "$path/$ROOT_SUBVOL"
+    printf '%s\n' "$id"
+    return 0
+  fi
   mkdir -p "$path"
   log "creating $id"
   run "$BTRFS" subvolume snapshot -r "$ROOT_PATH" "$path/$ROOT_SUBVOL"

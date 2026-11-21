@@ -1,23 +1,49 @@
 #!/usr/bin/env bash
 # 70-verify.sh — the evidence. Run this on the installed system and paste the output.
 set -uo pipefail
+export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
+# 60-boot needs PARAMETRAL_DEV for its boot entries; 70 needs it again to exercise
+# snapshot boot-entry. Source it instead of exporting a second copy from the installer.
+# shellcheck disable=SC1091
+[ -f /etc/parametral/snapshot.env ] && . /etc/parametral/snapshot.env
+
 PASS=0; FAIL=0
 ok()   { printf '  [PASS] %s\n' "$*"; PASS=$((PASS+1)); }
 bad()  { printf '  [FAIL] %s\n' "$*"; FAIL=$((FAIL+1)); }
 # eval in a subshell: a check expression contains `exit 1` and must not end the script
 check(){ if ( eval "$2" ) >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi; }
 
+# findmnt reports the modern form `subvol=/@`, not `subvol=@,`; match both without
+# pairing the name with the wrong target (a bare grep for "@" also matches @home).
+subvol_mounted() {
+  local target="$1" name="$2"
+  findmnt -no OPTIONS "$target" 2>/dev/null |
+    grep -Eq "(^|,)subvol=/@${name#@}(,|$)"
+}
+
 echo "Parametral OS install verification — $(date -u +%FT%TZ) on $(uname -r)"
 echo
 
 echo "1) snapshot system"
 check "btrfs root"                     "findmnt -no FSTYPE / | grep -q btrfs"
-check "@ / @home / @var / @snapshots mounted" "for s in @ @home @var @snapshots; do mount | grep -q \"subvol=\$s,\" || mount | grep -q \"subvol=\$s \" || exit 1; done"
+if subvol_mounted / @ &&
+   subvol_mounted /home @home &&
+   subvol_mounted /var @var &&
+   subvol_mounted /.snapshots @snapshots; then
+  ok "@ / @home / @var / @snapshots mounted"
+else
+  bad "@ / @home / @var / @snapshots mounted"
+fi
 check "snapshot tool installed"        "test -x /usr/local/bin/parametral-snapshot"
 check "pacman pre-transaction hook"    "grep -q parametral-snapshot /etc/pacman.d/hooks/90-parametral-snapshot.hook"
-check "at least one snapshot exists"   "parametral-snapshot list | grep -q present"
+SNAP_LIST="$(parametral-snapshot list 2>/dev/null || true)"
+if printf '%s\n' "$SNAP_LIST" | grep -q 'present'; then
+  ok "at least one snapshot exists"
+else
+  bad "at least one snapshot exists"
+fi
 if command -v parametral-snapshot >/dev/null; then
-  FIRST_ID="$(parametral-snapshot list | awk 'NR==2 {print $1}')"
+  FIRST_ID="$(printf '%s\n' "$SNAP_LIST" | awk 'NR>1 && $NF == "present" {print $1; exit}')"
   if [ -n "${FIRST_ID:-}" ]; then
     check "boot entry can be generated"  "parametral-snapshot boot-entry $FIRST_ID >/dev/null"
     ENTRY="/boot/loader/entries/parametral-snap-$FIRST_ID.conf"
@@ -29,8 +55,14 @@ fi
 echo
 echo "2) user separation"
 check "ai has no supplementary groups" "[ \"\$(id -nG ai | tr ' ' '\\n' | grep -vc '^ai$')\" -eq 0 ]"
-check "ai cannot sudo"                 "sudo -l -U ai 2>&1 | grep -qi 'not allowed'"
-check "ai cannot read the keys dir"    "! runuser -u ai -- test -r /etc/parametral/keys"
+# sudo's denial message is localised under the Turkish locale; the exit status is the
+# contract, not the English word "not allowed".
+if command -v sudo >/dev/null 2>&1 && ! sudo -l -U ai >/dev/null 2>&1; then
+  ok "ai cannot sudo"
+else
+  bad "ai cannot sudo"
+fi
+check "ai cannot read the approver key dir" "! runuser -u ai -- test -r /var/lib/parametral/keys"
 check "ai cannot read /etc/parametral/keys/*.sk" "! runuser -u ai -- sh -c 'cat /etc/parametral/keys/*.sk' 2>/dev/null"
 check "ai home is 0700"                "[ \"\$(stat -c %a /home/ai)\" = \"700\" ]"
 check "polkit denies ai"               "grep -q 'subject.user === \"ai\"' /etc/polkit-1/rules.d/50-parametral-ai.rules"

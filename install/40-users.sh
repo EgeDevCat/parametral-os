@@ -53,7 +53,7 @@ install -d -o ai -g ai -m 0700 /home/ai
 usermod -aG parametral "$HUMAN" 2>/dev/null || true
 install -d -o parametral -g parametral -m 0750 /var/lib/parametral
 install -d -o approver -g approver -m 0700 /var/lib/parametral
-install -d -o root -g root -m 0755 /var/lib/parametral/keys
+install -d -o root -g root -m 0700 /var/lib/parametral/keys
 
 if [ -n "${PARAMETRAL_PASSWORD:-}" ]; then
   echo "==> passwords: $HUMAN uses the installer password; ai is test-mode only"
