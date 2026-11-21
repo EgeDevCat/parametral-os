@@ -19,6 +19,17 @@ for arg in "$@"; do
   esac
 done
 
+# The human account defaults to `operator`, the name the rest of the kit documents. The
+# installer may pass another name; validate it so it stays a valid useradd/chpasswd token.
+HUMAN="${PARAMETRAL_USER:-operator}"
+case "$HUMAN" in
+  [a-z_]* ) ;;
+  *) echo "PARAMETRAL_USER must start with a-z or _ (got: $HUMAN)" >&2; exit 2 ;;
+esac
+case "$HUMAN" in
+  *[!a-z0-9_-]*|"") echo "PARAMETRAL_USER contains unsupported characters (got: $HUMAN)" >&2; exit 2 ;;
+esac
+
 # useradd -m writes into /home. If @home is not mounted (easy to miss when chrooting
 # by hand), /home/operator lands in the root subvolume and the greeter later fails with
 # "chdir(/home/operator) failed" -> the session dies right after authentication.
@@ -28,7 +39,7 @@ if ! mountpoint -q /home; then
 fi
 
 echo "==> users"
-id operator  >/dev/null 2>&1 || useradd -m -G wheel -s /bin/bash operator
+id "$HUMAN" >/dev/null 2>&1 || useradd -m -G wheel -s /bin/bash "$HUMAN"
 id parametral   >/dev/null 2>&1 || useradd -r -d /var/lib/parametral -s /usr/bin/nologin parametral
 id approver  >/dev/null 2>&1 || useradd -r -d /var/lib/parametral -s /bin/bash approver
 id ai        >/dev/null 2>&1 || useradd -m -s /bin/bash ai
@@ -39,17 +50,25 @@ usermod -G "" ai
 install -d -o ai -g ai -m 0700 /home/ai
 # The human account runs the approval window; it reaches the daemon through the
 # parametral group (socket 0660), never through root.
-usermod -aG parametral "$PARAMETRAL_USER" 2>/dev/null || true
+usermod -aG parametral "$HUMAN" 2>/dev/null || true
 install -d -o parametral -g parametral -m 0750 /var/lib/parametral
 install -d -o approver -g approver -m 0700 /var/lib/parametral
 install -d -o root -g root -m 0755 /var/lib/parametral/keys
 
-if [ "$NONINTERACTIVE" = "1" ]; then
-  echo "==> passwords: TEST MODE (operator/ai = 'parametral', service users locked)"
-  printf 'operator:parametral\nai:parametral\n' | chpasswd
+if [ -n "${PARAMETRAL_PASSWORD:-}" ]; then
+  echo "==> passwords: $HUMAN uses the installer password; ai is test-mode only"
+  printf '%s:%s\n' "$HUMAN" "$PARAMETRAL_PASSWORD" | chpasswd
+  if [ "$NONINTERACTIVE" = "1" ]; then
+    printf 'ai:parametral\n' | chpasswd
+  else
+    passwd ai
+  fi
+elif [ "$NONINTERACTIVE" = "1" ]; then
+  echo "==> passwords: TEST MODE ($HUMAN/ai = 'parametral', service users locked)"
+  printf '%s:parametral\nai:parametral\n' "$HUMAN" | chpasswd
 else
-  echo "==> passwords (interactive: operator types theirs, service users get none)"
-  passwd operator
+  echo "==> passwords (interactive: $HUMAN types theirs, service users get none)"
+  passwd "$HUMAN"
   passwd ai
 fi
 usermod -L parametral
@@ -88,7 +107,7 @@ find /etc/parametral/keys -type f \( -name '*.sk' -o -name '*.key' \) -exec chmo
 find /etc/parametral/keys -type f \( -name '*.pub' -o -name '*.sig' \) -exec chmod 0644 {} + 2>/dev/null || true
 
 echo "==> home permissions: other users cannot read each other"
-chmod 0700 /home/ai /home/operator
+chmod 0700 /home/ai "/home/$HUMAN"
 
 echo "checks:"
 printf '  ai groups: %s\n' "$(id -nG ai)"

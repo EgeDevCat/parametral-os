@@ -6,17 +6,24 @@
 # per profile. Firefox is here because a machine without a browser is not usable on day one.
 set -eu
 
+SRC="${SRC:-$(cd "$(dirname "$0")/.." && pwd)}"
+
 [ "${1:-}" = "--help" ] && { echo "usage: 45-apps.sh"; exit 0; }
 
 echo "==> temel uygulamalar"
+# Konsole and Dolphin are in both editions on purpose: the Hyprland keybinds (SUPER+Return,
+# SUPER+E) name them, and a tiling session with no terminal is not a working desktop.
 pacman -S --noconfirm --needed \
   firefox \
+  konsole \
+  dolphin \
   gwenview \
   okular \
   ark \
   spectacle \
   ffmpegthumbs \
-  kdegraphics-thumbnailers
+  kdegraphics-thumbnailers \
+  xdg-utils
 
 echo "==> Parametral uygulamaları (payload'da derlenmişse)"
 install -d /usr/share/applications

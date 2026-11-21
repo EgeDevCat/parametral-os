@@ -1,42 +1,8 @@
 #!/usr/bin/env bash
-# 79-hypr — the Parametral session: Hyprland as the compositor, our bar, our palette.
+# 79-hypr — legacy entry point for the Hyprland edition.
 #
-# Why Hyprland as the primary session: the whole desktop is a text config plus an IPC socket
-# (hyprctl), which is exactly what an AI-driven system needs to read, change and undo. KDE
-# stays installed as the safe session.
-set -eu
+# The edition moved to install/desktop/hyprland.sh so the installer, the manual path and the
+# docs all run the same code. This wrapper stays for older notes and scripts that call 79-hypr.
+set -Eeuo pipefail
 
-[ "${1:-}" = "--help" ] && { echo "usage: 79-hypr.sh"; exit 0; }
-
-SRC="${SRC:-/opt/parametral-src}"
-
-echo "==> Hyprland paketleri"
-pacman -S --noconfirm --needed \
-  hyprland swaybg hypridle hyprlock waybar fuzzel quickshell \
-  xdg-desktop-portal-hyprland polkit-kde-agent
-
-echo "==> Parametral oturum yapılandırması"
-install -d /etc/parametral/hypr
-install -m 0644 "$SRC/branding/hypr/parametral.conf"  /etc/parametral/hypr/parametral.conf
-install -m 0644 "$SRC/branding/hypr/waybar.jsonc"     /etc/parametral/hypr/waybar.jsonc
-install -m 0644 "$SRC/branding/hypr/waybar.css"       /etc/parametral/hypr/waybar.css
-install -Dm 0755 "$SRC/branding/hypr/parametral-launcher" /usr/local/bin/parametral-launcher
-
-echo "==> Parametral Shell (Quickshell/QML)"
-install -d /usr/share/parametral/shell
-install -m 0644 "$SRC/shell/shell.qml"    /usr/share/parametral/shell/shell.qml
-install -m 0644 "$SRC/shell/launcher.qml" /usr/share/parametral/shell/launcher.qml
-install -m 0644 "$SRC/shell/polkit.qml"   /usr/share/parametral/shell/polkit.qml
-# the shell's only palette source: generated from branding/tokens.json, never hand-edited
-install -m 0644 "$SRC/shell/Theme.js"     /usr/share/parametral/shell/Theme.js
-install -m 0644 "$SRC/branding/hypr/hyprlock.conf" /etc/parametral/hypr/hyprlock.conf
-
-# The session user must be able to read the config: a 0700 /etc/parametral makes Hyprland
-# start with "cannot open ...: Permission denied" and silently fall back to its defaults.
-chmod 755 /etc/parametral /etc/parametral/hypr
-chmod 644 /etc/parametral/hypr/* 2>/dev/null || true
-
-# The session entry lives in 80-noctalia.sh: it must point at uwsm + Noctalia.
-
-echo "==> done"
-echo "    SDDM'de 'Parametral' oturumunu seç, ya da: Hyprland --config /etc/parametral/hypr/parametral.conf"
+exec bash "$(cd "$(dirname "$0")" && pwd)/desktop/hyprland.sh" "$@"

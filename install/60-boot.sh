@@ -46,8 +46,19 @@ options rootflags=subvol=@ $CMDLINE_COMMON
 EOF
 }
 
-echo "==> services: desktop, network"
-systemctl enable sddm.service NetworkManager.service
+echo "==> services: network"
+systemctl enable NetworkManager.service
+
+# SDDM is installed by 74-desktop.sh for both editions. If no edition was selected (a hand
+# install that stopped early), do not enable a greeter that does not exist.
+if [ -f /etc/parametral/desktop.conf ]; then
+  # shellcheck disable=SC1091
+  . /etc/parametral/desktop.conf
+  echo "==> services: greeter (SDDM, ${PARAMETRAL_DESKTOP:-unknown} edition)"
+  systemctl enable sddm.service
+else
+  echo "WARN: /etc/parametral/desktop.conf missing — run install/74-desktop.sh before 60-boot.sh" >&2
+fi
 
 echo "==> entries: main, backup kernel, fallback initramfs"
 write_entry parametral.conf        "ParametralOS (linux)"      vmlinuz-linux     initramfs-linux.img

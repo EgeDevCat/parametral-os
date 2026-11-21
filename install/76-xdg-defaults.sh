@@ -5,18 +5,35 @@
 # who changes the theme keeps their choice, and a fresh account gets ours. Written to
 # /etc/xdg because KConfig reads it as the fallback layer.
 #
-# Appearance comes from the installer: PARAMETRAL_APPEARANCE=dark|light (default dark).
+# Desktop and appearance come from the installer:
+#   PARAMETRAL_DESKTOP=kde|hyprland|both (default kde)
+#   PARAMETRAL_APPEARANCE=dark|light     (default dark)
 set -eu
 
 [ "${1:-}" = "--help" ] && {
-  echo "usage: [PARAMETRAL_APPEARANCE=dark|light] 76-xdg-defaults.sh"
+  echo "usage: [PARAMETRAL_DESKTOP=kde|hyprland|both] [PARAMETRAL_APPEARANCE=dark|light] 76-xdg-defaults.sh"
   exit 0
 }
 
+DESKTOP="${PARAMETRAL_DESKTOP:-kde}"
 case "${PARAMETRAL_APPEARANCE:-dark}" in
-  light) SCHEME=ParametralLight; PLASMA_STYLE=breeze;      ICON_THEME=breeze;      GTK_THEME=Breeze ;;
-  dark)  SCHEME=Parametral;      PLASMA_STYLE=breeze-dark; ICON_THEME=breeze-dark; GTK_THEME=Breeze-Dark ;;
+  light) SCHEME=ParametralLight; PLASMA_STYLE=breeze ;;
+  dark)  SCHEME=Parametral;      PLASMA_STYLE=breeze-dark ;;
   *)     echo "PARAMETRAL_APPEARANCE must be dark or light" >&2; exit 2 ;;
+esac
+
+# KDE uses its own Breeze icons; the Hyprland edition ships Papirus because it reads better on
+# a dark Wayland surface and Breeze's monochrome symbolic set is tuned for Plasma's own widgets.
+# `both` follows the primary session (Hyprland), which is the one the installer preselects.
+case "$DESKTOP:${PARAMETRAL_APPEARANCE:-dark}" in
+  hyprland:light|both:light)
+    ICON_THEME=Papirus;     GTK_THEME=adw-gtk3;      CURSOR_THEME=Parametral ;;
+  hyprland:dark|both:dark)
+    ICON_THEME=Papirus-Dark; GTK_THEME=adw-gtk3-dark; CURSOR_THEME=Parametral ;;
+  *:light)
+    ICON_THEME=breeze;      GTK_THEME=Breeze;        CURSOR_THEME=breeze ;;
+  *)
+    ICON_THEME=breeze-dark; GTK_THEME=Breeze-Dark;   CURSOR_THEME=breeze ;;
 esac
 
 echo "==> /etc/xdg defaults (görünüm: $SCHEME)"
@@ -81,14 +98,15 @@ for ini in /etc/gtk-3.0/settings.ini /etc/gtk-4.0/settings.ini; do
 [Settings]
 gtk-theme-name=$GTK_THEME
 gtk-icon-theme-name=$ICON_THEME
-gtk-cursor-theme-name=breeze
+gtk-cursor-theme-name=$CURSOR_THEME
 gtk-cursor-theme-size=24
 gtk-font-name=Noto Sans 10
+gtk-application-prefer-dark-theme=$([ "${PARAMETRAL_APPEARANCE:-dark}" = dark ] && echo 1 || echo 0)
 EOF
 done
 
-# X11 default cursor: stock. Our Parametral theme stays installed but unselected.
+# Default pointer: the Parametral cursor in the Hyprland edition, stock Breeze in KDE.
 install -d /usr/share/icons/default
-printf '[Icon Theme]\nInherits=breeze\n' > /usr/share/icons/default/index.theme
+printf '[Icon Theme]\nInherits=%s\n' "$CURSOR_THEME" > /usr/share/icons/default/index.theme
 
 echo "==> done"

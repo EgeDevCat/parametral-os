@@ -1,57 +1,62 @@
 #!/usr/bin/env bash
 # run-all.sh — one-shot install for a throwaway test VM (no LUKS, known passwords).
-# A real install runs the steps by hand from docs/INSTALL-ARCH.md.
+#
+#   PARAMETRAL_DESKTOP=kde|hyprland|both bash install/run-all.sh /dev/sda
+#   PARAMETRAL_APPEARANCE=light ...            # optional, default dark
+#
+# A real install runs the same steps from docs/INSTALL-ARCH.md or uses the parametral-install
+# wizard. This script only shortens the test loop; it is not the product installer.
 set -Eeuo pipefail
+
 DISK="${1:-/dev/sda}"
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
+DESKTOP="${PARAMETRAL_DESKTOP:-kde}"
+APPEARANCE="${PARAMETRAL_APPEARANCE:-dark}"
+PARAMETRAL_USER="${PARAMETRAL_USER:-operator}"
+
+case "$DESKTOP" in
+  kde|hyprland|both) ;;
+  *) echo "PARAMETRAL_DESKTOP must be kde, hyprland or both" >&2; exit 2 ;;
+esac
 
 echo "=== 10 preflight"
 bash "$SRC/install/10-preflight.sh" "$DISK" --yes
 echo "=== 20 disk (no LUKS: test VM only)"
 bash "$SRC/install/20-disk.sh" "$DISK" --yes --no-luks
-echo "=== 30 bootstrap (both kernels, nix)"
+echo "=== 30 bootstrap (both kernels, nix, no desktop yet)"
 bash "$SRC/install/30-bootstrap.sh"
 echo "=== 35 nix (package manager)"
 bash "$SRC/install/35-nix.sh"
-echo "=== 76 xdg defaults (theme, cursor, fonts)"
-bash "$SRC/install/76-xdg-defaults.sh"
-# Desktop session: KDE is what ships today; the Parametral shell is installed on top when the
-# payload carries it and the installer asked for it. Never pretend: silence would mean the
-# user thinks they booted our shell while they are on Plasma.
-if [ "${PARAMETRAL_DESKTOP:-kde}" = "parametral" ]; then
-  if [ -x "$SRC/install/79-hypr.sh" ]; then
-    echo "=== 79 parametral session files (hyprland, experimental QML shell)"
-    bash "$SRC/install/79-hypr.sh"
-    echo "=== 80 noctalia session (uwsm + shell + palette)"
-    bash "$SRC/install/80-noctalia.sh"
-  else
-    echo "=== parametral shell: not in this payload — keeping KDE (asked for by installer)"
-  fi
-fi
 
-echo "=== 78 ai (hesap + onay penceresi)"
-bash "$SRC/install/78-ai.sh"
 echo "=== payload into the installed system"
-mkdir -p /mnt/opt
-cp -r "$SRC" /mnt/opt/parametral-src
-echo "=== 40 users (in chroot — must target the installed system, not the live ISO)"
-arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/40-users.sh --non-interactive'
-echo "=== 45 apps (firefox + temel uygulamalar)"
-bash "$SRC/install/45-apps.sh"
-echo "=== 65 branding (splash + login)"
+install -d /mnt/opt
+rm -rf /mnt/opt/parametral-src
+cp -a "$SRC" /mnt/opt/parametral-src
+
+chroot_run() {
+  local script="$1"; shift
+  echo "=== $script (chroot)"
+  arch-chroot /mnt env \
+    SRC=/opt/parametral-src \
+    PARAMETRAL_USER="$PARAMETRAL_USER" \
+    PARAMETRAL_DESKTOP="$DESKTOP" \
+    PARAMETRAL_APPEARANCE="$APPEARANCE" \
+    bash -c "cd /opt/parametral-src && bash install/$script $(printf '%q ' "$@")"
+}
+
+chroot_run 40-users.sh --non-interactive
+echo "=== 65 branding (splash + greeter theme)"
 bash "$SRC/install/65-branding.sh"
-echo "=== 75 desktop identity (in chroot)"
-arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/75-desktop.sh'
-echo "=== 72 grub (açılış menüsü, in chroot)"
-bash "$SRC/install/72-grub.sh"
-echo "=== 50 snapshots (in chroot)"
-arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/50-snapshots.sh'
-echo "=== 60 boot (in chroot)"
-arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/60-boot.sh'
-echo "=== 70 verify (in chroot)"
-arch-chroot /mnt bash -c 'cd /opt/parametral-src && bash install/70-verify.sh'
+chroot_run 74-desktop.sh
+chroot_run 45-apps.sh
+chroot_run 78-ai.sh
+chroot_run 50-snapshots.sh
+chroot_run 60-boot.sh
+chroot_run 70-verify.sh
+
 echo "=== clean unmount (a dirty ESP makes the firmware refuse to boot)"
 sync
 umount -R /mnt || true
 sync
-echo "=== INSTALL DONE — poweroff, detach the ISO, boot from the disk"
+echo "=== INSTALL DONE (desktop: $DESKTOP, appearance: $APPEARANCE)"
+echo "=== poweroff, detach the ISO, boot from the disk"

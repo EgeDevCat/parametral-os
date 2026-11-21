@@ -55,5 +55,40 @@ check "sandbox = true"                 "grep -q '^sandbox = true' /etc/nix/nix.c
 check "ai is not a trusted user"       "! grep -q 'trusted-users.*ai' /etc/nix/nix.conf"
 
 echo
+echo "5) desktop edition"
+if [ -f /etc/parametral/desktop.conf ]; then
+  # shellcheck disable=SC1091
+  . /etc/parametral/desktop.conf
+  ok "edition selection recorded (${PARAMETRAL_DESKTOP:-unset})"
+  check "greeter service enabled" "systemctl is-enabled sddm.service"
+  check "parametral-desktop helper installed" "test -x /usr/local/bin/parametral-desktop"
+  case "${PARAMETRAL_DESKTOP:-}" in
+    kde|both)
+      check "KDE Plasma installed" "pacman -Q plasma-desktop"
+      check "Plasma session entry present" "test -f /usr/share/wayland-sessions/plasma.desktop -o -f /usr/share/xsessions/plasma.desktop"
+      check "Parametral KDE colour scheme" "test -f /usr/share/color-schemes/Parametral.colors"
+      ;;
+  esac
+  case "${PARAMETRAL_DESKTOP:-}" in
+    hyprland|both)
+      check "Hyprland stack installed" "pacman -Q hyprland noctalia uwsm"
+      check "Parametral session launcher" "test -x /usr/local/bin/parametral-session"
+      check "Parametral session entry" "test -f /usr/share/wayland-sessions/parametral.desktop"
+      check "Hyprland config installed" "test -f /etc/parametral/hypr/parametral.lua"
+      check "generated palette installed" "grep -q 'appearance' /etc/parametral/hypr/theme.lua"
+      ;;
+  esac
+  primary="${PARAMETRAL_PRIMARY_SESSION:-plasma}"
+  if [ -f "/usr/share/wayland-sessions/$primary.desktop" ] ||
+     [ -f "/usr/share/xsessions/$primary.desktop" ]; then
+    ok "primary session entry exists ($primary.desktop)"
+  else
+    bad "primary session entry missing ($primary.desktop)"
+  fi
+else
+  bad "desktop edition not recorded (/etc/parametral/desktop.conf)"
+fi
+
+echo
 echo "RESULT: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ] || exit 1

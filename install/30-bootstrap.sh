@@ -6,14 +6,20 @@ mountpoint -q /mnt || { echo "/mnt is not mounted — run 20-disk.sh first" >&2;
 
 source /mnt/etc/parametral/snapshot.env 2>/dev/null || true
 
-echo "==> pacstrap (main kernel + backup kernel + nix + KDE Plasma)"
+echo "==> pacstrap (main kernel + backup kernel + nix; no desktop yet)"
+# The desktop is a choice, not a bootstrap fact: install/74-desktop.sh adds KDE or Hyprland
+# after the users exist. Installing Plasma here would make "Hyprland only" a lie (and would
+# leave the SDDM session list full of an edition the user did not pick).
 pacstrap /mnt \
   base base-devel linux linux-lts linux-firmware \
   btrfs-progs dosfstools e2fsprogs cryptsetup sudo efibootmgr \
   networkmanager openssh vim git less nix \
-  python \
-  plasma-meta sddm konsole dolphin kate \
-  qt5-base qt5-declarative qt5-quickcontrols2 qt5-graphicaleffects qt5-svg mesa
+  python mesa \
+  noto-fonts noto-fonts-emoji
+
+# pacstrap can finish without a resolver inside the target; the desktop step installs packages
+# from the chroot and would then fail with "could not resolve host".
+[ -f /mnt/etc/resolv.conf ] || cp /etc/resolv.conf /mnt/etc/resolv.conf
 
 echo "==> fstab"
 genfstab -U /mnt >> /mnt/etc/fstab

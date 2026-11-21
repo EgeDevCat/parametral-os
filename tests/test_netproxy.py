@@ -100,8 +100,14 @@ class GrantTest(unittest.TestCase):
         grant = self.registry.open("sbx_l_test", self.tmp,
                                    [{"host": "127.0.0.1", "port": free_port()}], ttl_s=30)
         path = os.path.join(self.tmp, f"{grant.grant_id}-{grant.hosts[0][1]}.sock")
-        with self.assertRaises((OSError, socket.timeout)):
-            unix_roundtrip(path, b"x", timeout=1.0)
+        # The proxy closes the client after connect() to the unapproved port fails. Depending
+        # on timing the kernel reports that as ECONNRESET or as a clean EOF; both prove the
+        # destination was refused, and the event is the part the audit log relies on.
+        try:
+            data = unix_roundtrip(path, b"x", timeout=1.0)
+        except (OSError, socket.timeout):
+            data = b""
+        self.assertEqual(data, b"")
         self.assertTrue(any(event["event"] == "connect_failed" for event in self.events))
 
     def test_grant_lists_and_closes(self):
