@@ -60,7 +60,8 @@ class VerifierTest(unittest.TestCase):
         self.assertFalse(result["network_isolated"])
         for key in ("task_id", "verdict", "exit_code", "build_log_sha256",
                     "test_log_sha256", "patch_sha256", "toolchain_sha256",
-                    "duration_ms", "flaky"):
+                    "tests_sha256", "repo_commit", "timeout_hit", "max_rss_kb",
+                    "hash_algo", "duration_ms", "flaky"):
             self.assertIn(key, result)
         self.assertEqual(len(result["patch_sha256"]), 64)
 
@@ -110,6 +111,18 @@ class VerifierTest(unittest.TestCase):
         result = Verifier().run(self.task(sandbox="bwrap", repeat=1))
         self.assertEqual(result["status"], "passed", result)
         self.assertTrue(result["network_isolated"])
+
+    def test_test_mutation_is_refused_in_code(self):
+        patch = """--- a/check.py
++++ b/check.py
+@@ -1,2 +1,2 @@
+ from impl import VALUE
+-raise SystemExit(0 if VALUE == 2 else 1)
++raise SystemExit(0)
+"""
+        with self.assertRaises(VerifyError) as ctx:
+            Verifier().run(self.task(patch=patch, test_files=["check.py"]))
+        self.assertEqual(ctx.exception.code, "TEST_MUTATION")
 
     def test_batch_mode_emits_one_json_line_per_task_and_exits_zero(self):
         tasks = self.root / "tasks.jsonl"

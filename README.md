@@ -11,7 +11,7 @@
 <p><b>An Arch + Nix system an AI can operate — but never own.</b></p>
 
 <p>
-  <img alt="tests" src="https://img.shields.io/badge/tests-300%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-302%20passing-brightgreen">
   <img alt="api" src="https://img.shields.io/badge/api-v1.2-blue">
   <img alt="sandbox" src="https://img.shields.io/badge/sandbox-bwrap%20%2B%20seccomp%20%2B%20cgroup%20v2-informational">
   <img alt="platform" src="https://img.shields.io/badge/platform-Arch%20%2B%20Nix-1793d1">
@@ -96,7 +96,7 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 | `src/parametral_guard.c` | in-sandbox seccomp + rlimit guard (compiled to `bin/seccomp_guard`) |
 | `policy/policy.v1.json` | allow/approval rules, default deny |
 | `policy/hard_deny.v1.json` + `.sig` + `.v1.pub` | tier-2 list, Ed25519-signed |
-| `tests/` | 300 unittest cases, no third-party deps |
+| `tests/` | 302 unittest cases, no third-party deps |
 | `install/` | Arch install kit: disk+LUKS, users, snapshots, boot, desktop edition choice (`74-desktop.sh`), `70-verify.sh` evidence |
 | `iso/build.sh` | bootable installer ISO: remasters an Arch ISO, starts the wizard on tty1 (no root needed) |
 | `src/tools/parametral-snapshot` | create / list / boot-entry / promote / prune rollback tool |
@@ -108,7 +108,7 @@ hard-deny oracle  →  policy (default deny)  →  capability token  →  handle
 ```fish
 cd ~/Desktop/Development/parametral-os
 make guard                 # static seccomp guard
-make test                  # 300 tests, expect "OK"
+make test                  # 302 tests, expect "OK"
 make proof                 # writes proofs/isolation-proof.txt, expect "RESULT: PASS"
 bash scripts/smoke.sh      # two real processes, real sockets, expect "SMOKE OK"
 ```

@@ -28,7 +28,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import json
 import os
+import re
+import resource
 import shlex
 import shutil
 import subprocess
@@ -84,6 +87,7 @@ class Task:
     toolchain: dict[str, str] = field(default_factory=dict)
     env: dict[str, str] = field(default_factory=dict)
     read_only: list[str] = field(default_factory=list)
+    test_files: list[str] = field(default_factory=list)
     sandbox: str = "auto"  # auto | bwrap | none
 
     @classmethod
@@ -112,6 +116,9 @@ class Task:
         read_only = data.get("read_only") or []
         if not isinstance(read_only, list) or not all(isinstance(p, str) for p in read_only):
             raise VerifyError("INVALID_TASK", "read_only must be a list of paths")
+        test_files = data.get("test_files") or []
+        if not isinstance(test_files, list) or not all(isinstance(p, str) for p in test_files):
+            raise VerifyError("INVALID_TASK", "test_files must be a list of paths")
         sandbox = str(data.get("sandbox", "auto"))
         if sandbox not in ("auto", "bwrap", "none"):
             raise VerifyError("INVALID_TASK", "sandbox must be auto, bwrap or none")
@@ -122,6 +129,9 @@ class Task:
                    repeat=repeat, seed=int(data.get("seed", 0)),
                    toolchain=dict(toolchain), env=dict(env),
                    read_only=[os.path.abspath(path) for path in read_only],
+                   test_files=[
+                       os.path.normpath(path).lstrip("./") for path in test_files
+                   ],
                    sandbox=sandbox)
 
     @classmethod
@@ -156,6 +166,54 @@ class Attempt:
             "stderr": self.stderr[-4000:],
             "isolated": self.isolated,
         }
+
+
+def _patch_paths(patch: str) -> set[str]:
+    """Extract the touched paths from a unified diff, without trusting a shell."""
+    paths: set[str] = set()
+    for line in patch.splitlines():
+        if not (line.startswith("+++ ") or line.startswith("--- ")):
+            continue
+        raw = line[4:].split("\t", 1)[0].strip()
+        if raw == "/dev/null" or not raw:
+            continue
+        if raw.startswith(("a/", "b/")):
+            raw = raw[2:]
+        paths.add(os.path.normpath(raw).lstrip("./"))
+    return paths
+
+
+def _is_test_path(path: str) -> bool:
+    parts = [part.lower() for part in path.replace("\\", "/").split("/") if part]
+    if "tests" in parts or "test" in parts:
+        return True
+    name = parts[-1] if parts else ""
+    return (name.startswith("test_") or name.endswith(("_test.py", "_test.rs",
+                                                       ".test.js", ".test.ts",
+                                                       ".test.tsx", ".spec.js",
+                                                       ".spec.ts", ".spec.tsx")))
+
+
+def _repo_commit(repo: str) -> str:
+    try:
+        proc = subprocess.run(["git", "-C", repo, "rev-parse", "HEAD"],
+                              capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return proc.stdout.strip() if proc.returncode == 0 else ""
+
+
+def _tests_sha(task: Task) -> str:
+    files: dict[str, str] = {}
+    for rel in task.test_files:
+        path = os.path.join(task.repo, rel)
+        try:
+            with open(path, "rb") as handle:
+                files[rel] = _sha_bytes(handle.read())
+        except OSError as exc:
+            raise VerifyError("TEST_FILE_MISSING", f"hidden test file missing: {rel}",
+                              {"path": path}) from exc
+    return util.sha256_tag(util.canonical_json({"argv": task.test, "files": files}))
 
 
 class Verifier:
@@ -292,6 +350,14 @@ class Verifier:
         try:
             shutil.copytree(task.repo, work, symlinks=True)
             patch_result = self._apply_patch(work, task.patch) if task.patch else None
+            touched = _patch_paths(task.patch) if task.patch else set()
+            protected = set(task.test_files) | {path for path in touched
+                                                if _is_test_path(path)}
+            mutation = sorted(touched & protected)
+            if mutation:
+                raise VerifyError("TEST_MUTATION",
+                                  "patch modifies hidden/test files: " + ", ".join(mutation),
+                                  {"paths": mutation})
             # Gate rule: a passing task is not repeated. A failure is; a second pass means
             # the result is flaky, not a win. Repeating every pass doubles build time and
             # saves no data; repeating a failure protects against poisoning the pool.
@@ -316,6 +382,12 @@ class Verifier:
             test_log = "\n".join((attempt.get("test") or {}).get("stdout", "") +
                                   (attempt.get("test") or {}).get("stderr", "")
                                   for attempt in attempts)
+            timeout_hit = any(
+                (attempt.get("build") or {}).get("timed_out") or
+                (attempt.get("test") or {}).get("timed_out")
+                for attempt in attempts
+            )
+            max_rss_kb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
             result = {
                 "task_id": task.task_id,
                 "verdict": status,
@@ -328,6 +400,11 @@ class Verifier:
                 "test_log_sha256": _sha_bytes(test_log.encode()),
                 "patch_sha256": _sha_bytes((task.patch or "").encode()),
                 "toolchain_sha256": util.sha256_tag(util.canonical_json(toolchain)),
+                "tests_sha256": _tests_sha(task),
+                "repo_commit": _repo_commit(task.repo),
+                "timeout_hit": bool(timeout_hit),
+                "max_rss_kb": int(max_rss_kb),
+                "hash_algo": "sha256",
                 "repeat": task.repeat,
                 "seed": task.seed,
                 "epoch": self.epoch,
@@ -359,6 +436,11 @@ def _error_result(task_id: str, exc: BaseException) -> dict:
         "test_log_sha256": _sha_bytes(b""),
         "patch_sha256": _sha_bytes(b""),
         "toolchain_sha256": util.sha256_tag(util.canonical_json({})),
+        "tests_sha256": util.sha256_tag(util.canonical_json({})),
+        "repo_commit": "",
+        "timeout_hit": False,
+        "max_rss_kb": 0,
+        "hash_algo": "sha256",
         "duration_ms": 0,
         "error": {"code": code, "message": str(exc)},
     }

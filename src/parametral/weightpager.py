@@ -648,6 +648,76 @@ def build_manifest_from_safetensors(shard_path: str, *, max_block_size: int = DE
     }
 
 
+def build_manifest_from_index(index_path: str, *,
+                              max_block_size: int = DEFAULT_BLOCK_SIZE,
+                              model: str | None = None,
+                              hash_algo: str = "sha256") -> dict:
+    """Build one manifest for every shard named by model.safetensors.index.json.
+
+    The index maps each tensor to a shard; each shard is parsed with its own header and
+    blocks are grouped inside that shard. Block ids are renumbered globally so a tensor
+    map and the pager can address all shards through one manifest.
+    """
+    index_path = os.path.abspath(index_path)
+    base = os.path.dirname(index_path)
+    try:
+        with open(index_path, "rb") as handle:
+            index = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise WeightPagerError("INVALID_MANIFEST", str(exc)) from exc
+    weight_map = index.get("weight_map") if isinstance(index, dict) else None
+    if not isinstance(weight_map, dict) or not weight_map:
+        raise WeightPagerError("INVALID_MANIFEST",
+                               f"{index_path}: no weight_map")
+    shard_names = sorted({str(name) for name in weight_map.values()})
+    parts = []
+    for name in shard_names:
+        path = os.path.join(base, name)
+        if not os.path.isfile(path):
+            raise WeightPagerError("SHARD_MISSING", f"shard not found: {path}")
+        parts.append(build_manifest_from_safetensors(
+            path, max_block_size=max_block_size,
+            model=model or os.path.basename(base), hash_algo=hash_algo))
+    blocks: list[dict] = []
+    shards: dict[str, dict] = {}
+    tensors: dict[str, list[str]] = {}
+    ranges: dict[str, list[dict]] = {}
+    next_index = 0
+    for name, part in zip(shard_names, parts):
+        for key, spec in part["shards"].items():
+            entry = dict(spec)
+            entry["path"] = os.path.abspath(os.path.join(base, name))
+            shards[key] = entry
+        mapping: dict[str, str] = {}
+        for block in part["blocks"]:
+            old = block["block_id"]
+            new = f"block.{next_index:06d}"
+            next_index += 1
+            mapping[old] = new
+            block = dict(block)
+            block["block_id"] = new
+            blocks.append(block)
+        for tensor, ids in part.get("tensors", {}).items():
+            tensors.setdefault(tensor, []).extend(mapping.get(item, item) for item in ids)
+        for tensor, items in part.get("tensor_ranges", {}).items():
+            for item in items:
+                ranges.setdefault(tensor, []).append({
+                    "block_id": mapping.get(item["block_id"], item["block_id"]),
+                    "offset": item["offset"],
+                    "length": item["length"],
+                })
+    return {
+        "version": 1,
+        "model": model or os.path.basename(base),
+        "block_size": int(max_block_size),
+        "hash_algo": hash_algo,
+        "shards": shards,
+        "blocks": blocks,
+        "tensors": tensors,
+        "tensor_ranges": ranges,
+    }
+
+
 def build_manifest(shard_path: str, *, block_size: int = DEFAULT_BLOCK_SIZE,
                    model: str = "synthetic", hash_algo: str = "sha256") -> dict:
     """Create a manifest for a raw shard file (development/benchmark helper).
@@ -702,7 +772,7 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(prog="parametral-weight",
                                      description="mmap weight pager (phase 6.1)")
-    parser.add_argument("--manifest", required=True)
+    parser.add_argument("--manifest", default=None)
     parser.add_argument("--audit", default=None,
                         help="block audit JSONL (default: state/blockaudit.jsonl)")
     parser.add_argument("--hash-cache", default=None,
@@ -719,8 +789,34 @@ def main(argv: list[str] | None = None) -> int:
     pre.add_argument("--req-id", default="cli")
     pre.set_defaults(command="prefetch")
     sub.add_parser("audit-verify").set_defaults(command="audit-verify")
+    build = sub.add_parser("build-manifest")
+    build.add_argument("--index", required=True,
+                       help="model.safetensors.index.json")
+    build.add_argument("--out", required=True)
+    build.add_argument("--max-block-mb", type=int, default=256)
+    build.add_argument("--model", default=None)
+    build.add_argument("--hash-algo", choices=HASH_ALGOS, default="sha256")
+    build.set_defaults(command="build-manifest")
     args = parser.parse_args(argv)
 
+    if args.command == "build-manifest":
+        data = build_manifest_from_index(
+            args.index, max_block_size=args.max_block_mb * 1024 * 1024,
+            model=args.model, hash_algo=args.hash_algo)
+        util.write_json(args.out, data, mode=0o644)
+        sizes = [block["length"] for block in data["blocks"]]
+        print(json.dumps({
+            "manifest": os.path.abspath(args.out),
+            "model": data["model"],
+            "blocks": len(sizes),
+            "total_gb": round(sum(sizes) / 1024 ** 3, 3),
+            "average_block_mb": round(sum(sizes) / len(sizes) / 1024 ** 2, 3) if sizes else 0,
+            "largest_block_mb": round(max(sizes) / 1024 ** 2, 3) if sizes else 0,
+            "tensors": len(data["tensors"]),
+        }, indent=2, sort_keys=True))
+        return 0
+    if not args.manifest:
+        parser.error("--manifest is required for pager commands")
     manifest = WeightManifest.load(args.manifest)
     audit_path = args.audit or os.path.join(util.state_dir(), "blockaudit.jsonl")
     audit = BlockAuditLog(audit_path)

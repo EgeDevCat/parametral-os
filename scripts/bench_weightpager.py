@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import multiprocessing
 import os
 import statistics
 import sys
@@ -36,9 +37,33 @@ def rss_kb() -> int:
     return 0
 
 
+def smaps_rollup() -> dict[str, int]:
+    """RSS alone cannot show sharing: shared pages count in every process' RSS."""
+    wanted = {"Rss", "Pss", "Shared_Clean", "Shared_Dirty", "Private_Clean",
+              "Private_Dirty", "RssAnon", "RssFile"}
+    out: dict[str, int] = {}
+    try:
+        with open("/proc/self/smaps_rollup", "r", encoding="utf-8") as handle:
+            for line in handle:
+                key, _, rest = line.partition(":")
+                if key in wanted:
+                    out[key] = int(rest.split()[0])
+    except OSError:
+        pass
+    return out
+
+
+def touch_view(view: memoryview) -> int:
+    """Force one real pass over the bytes, not just the page-table lookup."""
+    buffer = bytearray(len(view))
+    buffer[:] = view
+    return len(buffer)
+
+
 def timed_read(pager: WeightPager, block_id: str, req_id: str) -> float:
     started = time.perf_counter()
     view = pager.read_block(block_id, req_id=req_id, copy=False)
+    touch_view(view)
     view.release()
     return (time.perf_counter() - started) * 1000
 
@@ -54,6 +79,55 @@ def drop_cache(path: str) -> None:
         pass
 
 
+def _worker(manifest_path: str, ids: list[str], cache_path: str, conn) -> None:
+    manifest = WeightManifest.load(manifest_path)
+    pager = WeightPager(manifest, audit=None, hash_cache=HashCache(cache_path))
+    conn.send({"phase": "ready", "smaps": smaps_rollup()})
+    conn.recv()
+    for block_id in ids:
+        view = pager.read_block(block_id, req_id="worker", copy=False)
+        touch_view(view)
+        view.release()
+    conn.send({"phase": "done", "smaps": smaps_rollup()})
+    conn.recv()
+    pager.close()
+
+
+def two_process_sharing(manifest_path: str, ids: list[str], cache_path: str) -> dict:
+    """Keep client 1's maps open while client 2 touches the same shard."""
+    context = multiprocessing.get_context("fork")
+    p1, c1 = context.Pipe()
+    p2, c2 = context.Pipe()
+    first = context.Process(target=_worker, args=(manifest_path, ids, cache_path, c1))
+    second = context.Process(target=_worker, args=(manifest_path, ids, cache_path, c2))
+    first.start()
+    first_before = p1.recv()["smaps"]
+    p1.send("go")
+    first_after = p1.recv()["smaps"]
+
+    second.start()
+    second_before = p2.recv()["smaps"]
+    p2.send("go")
+    second_after = p2.recv()["smaps"]
+
+    p1.send("exit")
+    p2.send("exit")
+    first.join(timeout=10)
+    second.join(timeout=10)
+
+    def delta(before: dict, after: dict, key: str) -> int:
+        return int(after.get(key, 0) - before.get(key, 0))
+
+    return {
+        "client1_rss_after_kb": first_after.get("Rss", 0),
+        "client2_shared_clean_delta_kb": delta(second_before, second_after, "Shared_Clean"),
+        "client2_shared_dirty_delta_kb": delta(second_before, second_after, "Shared_Dirty"),
+        "client2_private_dirty_delta_kb": delta(second_before, second_after, "Private_Dirty"),
+        "client2_rss_anon_delta_kb": delta(second_before, second_after, "RssAnon"),
+        "client2_pss_delta_kb": delta(second_before, second_after, "Pss"),
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--size-mb", type=int, default=128)
@@ -61,12 +135,15 @@ def main() -> int:
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
 
-    with tempfile.TemporaryDirectory(prefix="parametral-bench-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="parametral-bench-",
+                                         dir=os.environ.get("PARAMETRAL_BENCH_DIR", "/var/tmp")) as tmp:
         root = Path(tmp)
         shard = root / "synthetic.safetensors"
         block_bytes = args.block_mb * 1024 * 1024
         size = args.size_mb * 1024 * 1024
         shard.write_bytes((bytes(range(256)) * ((size // 256) + 1))[:size])
+        with open(shard, "rb") as handle:
+            os.fsync(handle.fileno())
         drop_cache(str(shard))
         manifest_data = build_manifest(str(shard), block_size=block_bytes,
                                        model="synthetic-bench")
@@ -77,7 +154,7 @@ def main() -> int:
         audit = BlockAuditLog(str(root / "blockaudit.jsonl"))
         cache = HashCache(str(root / "hashcache.json"))
 
-        pager = WeightPager(manifest, audit=audit, hash_cache=cache)
+        pager = WeightPager(manifest, audit=None, hash_cache=cache)
         cold = []
         for block_id in ids:
             cold.append(timed_read(pager, block_id, "cold"))
@@ -85,13 +162,22 @@ def main() -> int:
         for block_id in ids:
             hot.append(timed_read(pager, block_id, "hot"))
         rss_one = rss_kb()
+        smaps_one = smaps_rollup()
 
-        second = WeightPager(manifest, audit=audit, hash_cache=cache)
+        second = WeightPager(manifest, audit=None, hash_cache=cache)
         for block_id in ids:
             view = second.read_block(block_id, req_id="second", copy=False)
+            touch_view(view)
             view.release()
         rss_two = rss_kb()
+        smaps_two = smaps_rollup()
 
+        audit_pager = WeightPager(manifest, audit=audit, hash_cache=cache)
+        audit_pager.read_block(ids[0], req_id="audit-evidence")
+        audit_pager.close()
+        audit_result = audit.verify()
+        two_process = two_process_sharing(str(manifest_path), ids,
+                                          str(root / "hashcache-shared.json"))
         total_bytes = sum(block.length for block in manifest.blocks.values())
         result = {
             "model": "synthetic",
@@ -113,8 +199,13 @@ def main() -> int:
             "rss_kb_one_pager": rss_one,
             "rss_kb_two_pagers": rss_two,
             "rss_delta_kb_second_pager": rss_two - rss_one,
+            "smaps_delta_kb_second_pager": {
+                key: smaps_two.get(key, 0) - smaps_one.get(key, 0)
+                for key in sorted(set(smaps_one) | set(smaps_two))
+            },
             "hash": pager.snapshot_stats(),
-            "audit": audit.verify(),
+            "audit": audit_result,
+            "two_process": two_process,
         }
         second.close()
         pager.close()

@@ -72,6 +72,11 @@ Result schema (stable keys):
   "patch_sha256": "...",
   "toolchain_sha256": "sha256:...",
   "duration_ms": 1234,
+  "tests_sha256": "sha256:...",
+  "repo_commit": "...",
+  "timeout_hit": false,
+  "max_rss_kb": 123456,
+  "hash_algo": "sha256",
   "flaky": false
 }
 ```
@@ -88,7 +93,9 @@ remain in the same object.
 - `mmap(O_RDONLY)` is the primary path; two processes share the same physical pages;
 - **no O_DIRECT** (it deliberately throws away the page cache);
 - `MADV_SEQUENTIAL` + two-block-ahead `MADV_WILLNEED`; `pread`/`posix_fadvise` is the measured fallback;
-- hot/cold is two-tier: active-step blocks are pinned, the rest are LRU;
+- hot/cold: **no bulk pinning**. A forward pass touches every layer, so pinning the whole
+  active step would pin the model. Only the current block and the 2-block prefetch window are
+  kept hot; the rest is LRU. Backward pass then finds the tail still resident;
 - **hash once per cold page-in** and persist `(block_id, shard, size, mtime_ns, hash)`
   in `HashCache`. Warm reads reuse the hash. A 48 GB step must not spend 24–120 s
   re-hashing bytes that are already verified.
@@ -146,16 +153,48 @@ the same events into the daemon's global audit chain (phase 6.3).
 
 | metric | value |
 |---|---|
-| cold page-in / block | **13.9 ms** mean (median 14.3, max 14.5) |
-| hot read / block | **0.037 ms** mean (zero-copy view) |
-| cold sequential | **1152 MB/s** |
-| hot sequential | **362910 MB/s** (page cache) |
-| RSS, second pager | **+0 KB** (shared mmap pages) |
-| audit | 24 records, chain valid |
+| cold page-in / block | **20.5 ms** mean (median 20.7, max 21.7) |
+| hot read / block | **6.5 ms** mean (one real byte pass, Python copy) |
+| cold sequential | **782 MB/s** on this btrfs disk |
+| hot sequential | **2459 MB/s** (Python copy-bound; the mapping is zero-copy) |
+| hash, cold | **92.9 ms** for 128 MB (~1.4 GB/s) |
+| two clients, shared pages | `Shared_Clean` **+131.5 MB**, `Private_Dirty` **+0.4 MB**, `RssAnon` **0** |
+| audit | 1 record for the evidence read, chain valid |
 
 These are synthetic numbers, not the 9B acceptance: they verify the mechanism and the
-shared-page claim. The 9B AWQ (6.1 GB) and REAP-40B (22 GB) runs must repeat the same
-JSON fields on real shards.
+shared-page claim. `touch_view()` copies every byte, so the hot number is a real memory
+pass, not a page-table lookup; Python overhead is why it is not 8-20 GB/s. The 9B AWQ
+(6.1 GB) and REAP-40B (22 GB) runs must repeat the same JSON fields on real shards.
+
+## Real checkpoint check (Qwen3-4B, 7.49 GB)
+
+This machine does not have the 9B AWQ shard. The same builder was run on the local
+Qwen3-4B safetensors index (3 shards, 398 tensors) as a real-checkpoint check:
+
+| metric | value |
+|---|---|
+| blocks | **31** |
+| total | **7.493 GB** |
+| average block | **247.496 MB** |
+| largest block (one tensor) | **741.879 MB** |
+| cold page-in / block | **264.4 ms** mean (median 255.5) |
+| cold sequential | **936 MB/s** |
+| hot byte pass / block | **73.6 ms** mean |
+| hot sequential | **3362 MB/s** (Python copy-bound) |
+| cold hash | **5.85 s** for 7.49 GB (~1.28 GB/s) |
+| audit | 62 reads, chain valid |
+
+For the 9B AWQ, run the same command once the shards exist:
+
+```fish
+bin/parametral-weight build-manifest   --index /path/to/model.safetensors.index.json   --out /path/to/parametral-manifest.json --max-block-mb 256
+```
+
+The output prints block count, average block size, largest tensor block and total GB; the
+Kaggle and local sides then speak the same numbers.
+
+`build_manifest_from_safetensors` is also the tool for the real model: point it at each
+shard, then record block count, average block size, largest tensor block and total GB.
 
 ## Acceptance measurements
 

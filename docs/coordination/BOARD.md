@@ -5,8 +5,8 @@ kanıt yaz. `done`yu yalnız doğrulayan taraf yazar.
 
 | id | başlık | sahip | durum | kabul kriteri | kanıt |
 |---|---|---|---|---|---|
-| T15 | OS: weight pager 6.1 — mmap, pin/LRU, block audit | A | review | 256 MB hizalı blok; mmap ana yol; sıcak/soğuk ölçümü; `parametral-block-v1` hash zinciri | `tests/test_weightpager.py` 10 test OK · `bin/parametral-weight read/prefetch/audit-verify` · `docs/OS-SIDE.md` |
-| T14 | OS: verifier 0.3 — patch → build → test | A | review | argv-only, ağ kapalı (bwrap), sabit clock/seed/locale, toolchain hash, flaky karantina | `tests/test_verifier.py` 9 test OK (bwrap dahil) · `bin/parametral-verify task.json` |
+| T15 | OS: weight pager 6.1 — mmap, pin/LRU, block audit | A | review | 256 MB hizalı blok; mmap ana yol; sıcak/soğuk ölçümü; `parametral-block-v1` hash zinciri | `tests/test_weightpager.py` 11 test OK · `bin/parametral-weight read/prefetch/audit-verify` · `docs/OS-SIDE.md` |
+| T14 | OS: verifier 0.3 — patch → build → test | A | review | argv-only, ağ kapalı (bwrap), sabit clock/seed/locale, toolchain hash, flaky karantina | `tests/test_verifier.py` 10 test OK (bwrap dahil) · `bin/parametral-verify task.json` |
 | T13 | kurulum: KDE / Hyprland seçimi + SDDM varsayılanı | A | review | tek soru; seçilmeyen edisyon kurulmuyor; tema cevabı iki edisyonda da uygulanıyor; `parametral-desktop` ile değiştirilebiliyor | `install/74-desktop.sh --plan kde\|hyprland\|both` · `tests/test_desktop_install.py` 25 test OK · `parametral-install --list-desktops` üç satır `ready` · `30-bootstrap.sh` masaüstü paketi kurmuyor |
 | T7 | oturum: start-hyprland / XDG uyarılarını sıfırla | A | review | açılışta siyah toast yok; oturum kendi config'iyle açılıyor | `docs/previews/T7-session-clean-1280x800-dark.png` · `hyprctl -j binds` = 31 (bizim binds.lua) · `start-hyprland` uyarısı 0 · XDG uyarısı 0 · fstab-generator rc=0 (duplicate `/.snapshots` silindi) |
 | T8 | font: Inter + IBM Plex Mono + 16 px mark | A/B | review | `fc-match` Inter; Plex Mono kurulu; mark 16 px'te okunur | `fc-match Inter` → `Inter.ttc: "Inter"` · `fc-match "IBM Plex Mono"` → `IBMPlexMono-Regular.ttf` · mark 16 px denetimi BEKLEMEDE (B) |

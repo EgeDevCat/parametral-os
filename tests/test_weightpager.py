@@ -10,6 +10,7 @@ from pathlib import Path
 from parametral.blockaudit import BlockAuditLog
 from parametral.weightpager import (HashCache, WeightManifest, WeightPager,
                                     WeightPagerError, build_manifest,
+                                    build_manifest_from_index,
                                     build_manifest_from_safetensors)
 
 
@@ -120,6 +121,26 @@ class PagerTest(unittest.TestCase):
         data["blocks"][0]["offset"] = 1
         with self.assertRaises(WeightPagerError):
             WeightManifest(data, str(self.root))
+
+    def test_index_builder_merges_shards_with_unique_blocks(self):
+        def shard(name: str, tensor: str, payload: bytes) -> None:
+            header = json.dumps({tensor: {"dtype": "U8", "shape": [len(payload)],
+                                          "data_offsets": [0, len(payload)]}}).encode()
+            (self.root / name).write_bytes(len(header).to_bytes(8, "little") + header + payload)
+        shard("s1.safetensors", "a", b"abc")
+        shard("s2.safetensors", "b", b"defg")
+        index = {"weight_map": {"a": "s1.safetensors", "b": "s2.safetensors"}}
+        (self.root / "model.safetensors.index.json").write_text(json.dumps(index))
+        data = build_manifest_from_index(str(self.root / "model.safetensors.index.json"),
+                                         max_block_size=64 * 1024 * 1024, model="tiny")
+        self.assertEqual(len({block["block_id"] for block in data["blocks"]}),
+                         len(data["blocks"]))
+        self.assertEqual(set(data["tensors"]), {"a", "b"})
+        manifest = WeightManifest(data, str(self.root))
+        pager = WeightPager(manifest, audit=self.audit)
+        self.assertEqual(pager.read_tensor("a", req_id="a"), b"abc")
+        self.assertEqual(pager.read_tensor("b", req_id="b"), b"defg")
+        pager.close()
 
     def test_cold_hash_is_cached_across_pagers(self):
         cache = HashCache(str(self.root / "hashcache.json"))
