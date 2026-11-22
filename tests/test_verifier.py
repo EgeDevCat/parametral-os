@@ -1,8 +1,10 @@
 """Deterministic verifier: patch -> build -> test, repeat and quarantine flaky."""
 from __future__ import annotations
 
+import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -46,13 +48,20 @@ class VerifierTest(unittest.TestCase):
         data.update(overrides)
         return Task.from_dict(data)
 
-    def test_patch_build_test_passes_twice(self):
+    def test_patch_build_test_passes_once(self):
         result = Verifier().run(self.task())
         self.assertEqual(result["status"], "passed", result)
+        self.assertEqual(result["verdict"], "passed")
         self.assertTrue(result["deterministic"])
+        self.assertFalse(result["flaky"])
         self.assertEqual(result["repeat"], 2)
-        self.assertEqual(len(result["attempts"]), 2)
+        self.assertEqual(len(result["attempts"]), 1,
+                         "a passing task must not be repeated")
         self.assertFalse(result["network_isolated"])
+        for key in ("task_id", "verdict", "exit_code", "build_log_sha256",
+                    "test_log_sha256", "patch_sha256", "toolchain_sha256",
+                    "duration_ms", "flaky"):
+            self.assertIn(key, result)
         self.assertEqual(len(result["patch_sha256"]), 64)
 
     def test_without_patch_the_hidden_test_fails(self):
@@ -67,12 +76,14 @@ class VerifierTest(unittest.TestCase):
             "p = Path('count.txt')\n"
             "n = int(p.read_text()) if p.exists() else 0\n"
             "p.write_text(str(n + 1))\n"
-            "raise SystemExit(0 if n % 2 == 0 else 1)\n",
+            "raise SystemExit(0 if n % 2 == 1 else 1)\n",
         ]
         result = Verifier().run(self.task(patch=None, test=test, repeat=2))
         self.assertEqual(result["status"], "flaky", result)
+        self.assertTrue(result["flaky"])
         self.assertFalse(result["deterministic"])
         self.assertFalse(result["passed"])
+        self.assertEqual(len(result["attempts"]), 2)
 
     def test_toolchain_pin_is_checked(self):
         task = self.task(toolchain={"python3": "0" * 64})
@@ -99,6 +110,26 @@ class VerifierTest(unittest.TestCase):
         result = Verifier().run(self.task(sandbox="bwrap", repeat=1))
         self.assertEqual(result["status"], "passed", result)
         self.assertTrue(result["network_isolated"])
+
+    def test_batch_mode_emits_one_json_line_per_task_and_exits_zero(self):
+        tasks = self.root / "tasks.jsonl"
+        good = {
+            "task_id": "batch-good", "repo": str(self.repo), "patch": PATCH,
+            "build": [sys.executable, "-c", "import impl"],
+            "test": [sys.executable, "check.py"], "repeat": 2, "sandbox": "none",
+        }
+        bad = dict(good, task_id="batch-bad", patch=None)
+        tasks.write_text(json.dumps(good) + "\n" + json.dumps(bad) + "\n")
+        proc = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve().parent.parent
+                                 / "bin" / "parametral-verify"),
+             "--batch", str(tasks)],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        lines = [json.loads(line) for line in proc.stdout.splitlines() if line.strip()]
+        self.assertEqual([line["task_id"] for line in lines], ["batch-good", "batch-bad"])
+        self.assertEqual([line["verdict"] for line in lines], ["passed", "failed"])
 
 
 if __name__ == "__main__":

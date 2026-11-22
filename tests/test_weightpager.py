@@ -8,8 +8,9 @@ import unittest
 from pathlib import Path
 
 from parametral.blockaudit import BlockAuditLog
-from parametral.weightpager import (WeightManifest, WeightPager, WeightPagerError,
-                                    build_manifest)
+from parametral.weightpager import (HashCache, WeightManifest, WeightPager,
+                                    WeightPagerError, build_manifest,
+                                    build_manifest_from_safetensors)
 
 
 class PagerTest(unittest.TestCase):
@@ -119,6 +120,47 @@ class PagerTest(unittest.TestCase):
         data["blocks"][0]["offset"] = 1
         with self.assertRaises(WeightPagerError):
             WeightManifest(data, str(self.root))
+
+    def test_cold_hash_is_cached_across_pagers(self):
+        cache = HashCache(str(self.root / "hashcache.json"))
+        block = next(iter(self.manifest.blocks.values()))
+        first = WeightPager(self.manifest, audit=self.audit, hash_cache=cache)
+        first.read_block(block.block_id, req_id="cold")
+        self.assertEqual(first.snapshot_stats()["hash_computed"], 1)
+        first.close()
+        second = WeightPager(self.manifest, audit=self.audit, hash_cache=cache)
+        second.read_block(block.block_id, req_id="warm")
+        stats = second.snapshot_stats()
+        self.assertEqual(stats["hash_computed"], 0)
+        self.assertEqual(stats["hash_skipped"], 1)
+        second.close()
+
+    def test_safetensors_blocks_are_aligned_and_do_not_cut_tensors(self):
+        # 8-byte length + header + data. The header length deliberately leaves the data
+        # section unaligned; the builder must round the block, not split a tensor.
+        header = json.dumps({
+            "t1": {"dtype": "U8", "shape": [3], "data_offsets": [0, 3]},
+            "t2": {"dtype": "U8", "shape": [3], "data_offsets": [3, 6]},
+        }).encode()
+        blob = self.root / "real.safetensors"
+        blob.write_bytes(len(header).to_bytes(8, "little") + header + b"abcdef")
+        data = build_manifest_from_safetensors(str(blob), max_block_size=4096,
+                                               model="tiny")
+        self.assertTrue(data["blocks"])
+        for block in data["blocks"]:
+            self.assertEqual(block["offset"] % 4096, 0)
+        self.assertEqual(set(data["tensors"]), {"t1", "t2"})
+        for tensor, blocks in data["tensors"].items():
+            self.assertTrue(blocks, tensor)
+            for block_id in blocks:
+                self.assertIn(block_id, {item["block_id"] for item in data["blocks"]})
+        manifest_path = self.root / "real-manifest.json"
+        manifest_path.write_text(json.dumps(data))
+        manifest = WeightManifest.load(str(manifest_path))
+        pager = WeightPager(manifest, audit=self.audit)
+        self.assertEqual(pager.read_tensor("t1", req_id="t1"), b"abc")
+        self.assertEqual(pager.read_tensor("t2", req_id="t2"), b"def")
+        pager.close()
 
 
 if __name__ == "__main__":

@@ -292,24 +292,45 @@ class Verifier:
         try:
             shutil.copytree(task.repo, work, symlinks=True)
             patch_result = self._apply_patch(work, task.patch) if task.patch else None
-            attempts = [self._attempt(task, work, number) for number in range(1, task.repeat + 1)]
-            passed = [attempt["passed"] for attempt in attempts]
-            if all(passed):
+            # Gate rule: a passing task is not repeated. A failure is; a second pass means
+            # the result is flaky, not a win. Repeating every pass doubles build time and
+            # saves no data; repeating a failure protects against poisoning the pool.
+            first = self._attempt(task, work, 1)
+            attempts = [first]
+            if first["passed"]:
                 status = "passed"
-            elif not any(passed):
-                status = "failed"
+            elif task.repeat > 1:
+                second = self._attempt(task, work, 2)
+                attempts.append(second)
+                status = "flaky" if second["passed"] else "failed"
             else:
-                status = "flaky"
-            deterministic = len(set(passed)) == 1
+                status = "failed"
+            last_test = next((attempt.get("test") for attempt in reversed(attempts)
+                              if attempt.get("test")), None)
+            last_build = next((attempt.get("build") for attempt in reversed(attempts)
+                               if attempt.get("build")), None)
+            exit_code = (last_test or last_build or {}).get("exit_code")
+            build_log = "\n".join((attempt.get("build") or {}).get("stdout", "") +
+                                   (attempt.get("build") or {}).get("stderr", "")
+                                   for attempt in attempts)
+            test_log = "\n".join((attempt.get("test") or {}).get("stdout", "") +
+                                  (attempt.get("test") or {}).get("stderr", "")
+                                  for attempt in attempts)
             result = {
                 "task_id": task.task_id,
+                "verdict": status,
                 "status": status,
                 "passed": status == "passed",
-                "deterministic": deterministic,
+                "flaky": status == "flaky",
+                "deterministic": status != "flaky",
+                "exit_code": -1 if exit_code is None else int(exit_code),
+                "build_log_sha256": _sha_bytes(build_log.encode()),
+                "test_log_sha256": _sha_bytes(test_log.encode()),
+                "patch_sha256": _sha_bytes((task.patch or "").encode()),
+                "toolchain_sha256": util.sha256_tag(util.canonical_json(toolchain)),
                 "repeat": task.repeat,
                 "seed": task.seed,
                 "epoch": self.epoch,
-                "patch_sha256": _sha_bytes((task.patch or "").encode()),
                 "toolchain": toolchain,
                 "network_isolated": bool(self.bwrap and task.sandbox != "none"),
                 "attempts": attempts,
@@ -324,17 +345,79 @@ class Verifier:
                 shutil.rmtree(root, ignore_errors=True)
 
 
+def _error_result(task_id: str, exc: BaseException) -> dict:
+    code = getattr(exc, "code", type(exc).__name__)
+    return {
+        "task_id": task_id,
+        "verdict": "error",
+        "status": "error",
+        "passed": False,
+        "flaky": False,
+        "deterministic": False,
+        "exit_code": -1,
+        "build_log_sha256": _sha_bytes(b""),
+        "test_log_sha256": _sha_bytes(b""),
+        "patch_sha256": _sha_bytes(b""),
+        "toolchain_sha256": util.sha256_tag(util.canonical_json({})),
+        "duration_ms": 0,
+        "error": {"code": code, "message": str(exc)},
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(prog="parametral-verify",
                                      description="deterministic patch -> build -> test")
-    parser.add_argument("task", help="task JSON")
+    parser.add_argument("task", nargs="?", help="task JSON")
+    parser.add_argument("--batch", action="store_true",
+                        help="read a JSONL file of tasks and emit one JSON result per line")
     parser.add_argument("--keep", action="store_true", help="keep the throwaway work tree")
     parser.add_argument("--epoch", type=int, default=DEFAULT_EPOCH)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
-    task = Task.load(args.task)
-    result = Verifier(epoch=args.epoch, keep=args.keep).run(task)
+    verifier = Verifier(epoch=args.epoch, keep=args.keep)
+
+    if args.batch:
+        if not args.task:
+            print(json.dumps(_error_result("", VerifyError("USAGE", "--batch needs a JSONL file")),
+                             sort_keys=True, ensure_ascii=False))
+            return 0
+        try:
+            handle = open(args.task, "r", encoding="utf-8")
+        except OSError as exc:
+            print(json.dumps(_error_result("", exc), sort_keys=True, ensure_ascii=False))
+            return 0
+        with handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                raw = {}
+                try:
+                    raw = json.loads(line)
+                    task_id = str(raw.get("task_id", "")) if isinstance(raw, dict) else ""
+                    task = Task.from_dict(raw)
+                    result = verifier.run(task)
+                except BaseException as exc:  # one bad task must not stop the batch
+                    task_id = str(raw.get("task_id", "")) if isinstance(raw, dict) else ""
+                    result = _error_result(task_id, exc)
+                print(json.dumps(result, sort_keys=True, ensure_ascii=False))
+        return 0
+
+    if not args.task:
+        parser.print_help()
+        return 0
+    try:
+        task = Task.load(args.task)
+        result = verifier.run(task)
+    except BaseException as exc:
+        task_id = ""
+        try:
+            with open(args.task, "r", encoding="utf-8") as handle:
+                raw = json.load(handle)
+            task_id = str(raw.get("task_id", "")) if isinstance(raw, dict) else ""
+        except Exception:
+            pass
+        result = _error_result(task_id, exc)
     print(json.dumps(result, indent=2, sort_keys=True, ensure_ascii=False))
-    return 0 if result["status"] == "passed" else 1
+    return 0
