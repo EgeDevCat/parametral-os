@@ -129,8 +129,9 @@ class VerifyRegressions(unittest.TestCase):
 
     def test_sudo_check_uses_exit_status_not_english(self):
         text = (INSTALL / "70-verify.sh").read_text()
-        self.assertIn("sudo -l -U ai >/dev/null 2>&1", text)
+        self.assertIn("runuser -u ai -- sudo -n true", text)
         self.assertNotIn("grep -qi 'not allowed'", text)
+        self.assertIn("set -a", text)
 
     def test_approver_key_dir_is_checked_and_created_0700(self):
         verify = (INSTALL / "70-verify.sh").read_text()
